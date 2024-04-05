@@ -1,0 +1,85 @@
+
+
+CLASSIC POWER RANKINGS FORMULA:
+exp win:
+1/(1+10^(({Average Of Participants})/{Factor(500)}))
+                                        note: cranking up this factor dampens the changes of exp win from power gaps. not sure we really need to fuck with it too much. just half of the default rating
+end rating: 
+{Starting Rating}+({Weighting}*{K-Factor(200)}*({Actual Win Weighting(0-1)}-{EXP Win}))
+
+
+keep this general structure. it's good it needs to have new variables.
+
+TAG MATCHES:
+adjust {Actual Win} number depending on if you got the pin or not. not by much, but by a little
+MAYBE the reduction you get for not getting the pin is more if you aren't an official team?
+IF PARTNERS = EXISTING TEAM
+    pin getter: 1, others: 0.9
+IF PARTNERS NOT EXISTING TEAM, BUT ARE FACTION MATES:
+    pin getter: 1, others: 0.85
+IF NEITHER TAG PARTNERS OR FACTION MATES:
+    pin getter: 1, others: 0.8
+i want it to weight a little more towards a guy who's always the one actually winning tag matches, because he's the one actually presented as stronger
+
+TAG TEAMS:
+maybe there's a number calculated for that tag team's matches and then also it's modified by an average of each guy's singles record
+if penta and fenix are also winning a lot of singles matches, that helps their tag rating.
+remember: power level should reflect perceptions. factor everything that affects how a wrestler is percieved
+
+
+SHOW WEIGHTING:
+i think this would affect EXP win, right? give it, i dunno, a 10% shift depending on if it's regular TV, a b-show, or PPV
+DARK / ELEVATION: 0.8
+DYNAMITE / RAMPAGE / COLLISION / BOTB: 1.0
+PPV: 1.2
+
+maybe this is just the straight-up weighting. i want it to dampen or enhance the total shift. a loss on dark shouldn't kill you, but a win on dark isn't as much as a win on TV
+
+TITLE MATCH WEIGHTING:
+the point loss for a guy who loses a title match should be less. just being in a big match is usually a good sign.
+obviously, increased point gain for winner as well
+maybe a title holder losing does have an increased penalty, just to offset the inflation you get through a successful title run?
+on the other hand, i DO want people to drop out of the top 5 after losing title matches. test a few different approaches
+
+
+WRESTLER STARTING RANKINGS:
+STARTING NUMBER * SHOW MODIFIER * X-Factor
+if a wrestler is debuting with a loss on dark, we can assume they're a jobber and give them a more significant downgrade.
+
+maybe TV debut = 1000, dark debut = 800, dark loser debut = 500, ppv debut = 1200?
+
+
+HOW NUMBERS SHOULD FEEL
+i want them to get high. i want guys at the top of the rankings to break 9000, for obvious reasons.
+maybe add an x-factor boost to wins? adjusting the k-factor just more heavily weights swings both down and up. need to have a separate X that's 1 if loser and 1.X if win
+
+
+DECAY
+this then becomes one of the more complex ones. after, let's say 3 weeks without a match, a score begins decaying at a rate that increases the longer they go without wrestling.
+maybe start at 5% a week and increase it on a curve?
+after let's say 8 weeks without a match a guy is moved to the INACTIVE rankings.
+does decay still happen in inactive? probably not, right?
+so the page would have ACTIVE and INACTIVE but would probably also need ALUMNI. that would be a manual move. maybe there's a list of potential alumnis on the admin page, and after 6 months guys get put on it
+so it surfaces to you, the admin, guys that you should consider moving into the alumni rankings
+like, kenny omega is on inactive. he's injured. cody rhodes left the company, so he should not be on inactive.
+inactive implies returns
+maybe guys can be moved to inactive manually, but still get the 8 weeks of decay
+
+STREAKS
+multiple wins in a row increases the value of each successive win. a percentage that increases.
+this would probably be a huge contributor to the big ratings at the top that I want
+would have to have a cap, since guys like to have massive streaks in aew. top guys don't lose like ever
+
+ADVANCED DECAY
+i like the idea of a win's actual contribution to a rating decaying over time - it's more important when it's fresh. after a gap, let's say a month, it begins "settling"
+as it goes through each result when calculating ratings, there's a modifier of how many weeks ago a match was. 0-8? no change. at 8+, it starts decaying until it hits a floor.
+obviously it never completely fades, but i want the ratings to weigh towards recent wins. what have you done for me lately
+
+TITLE MATCHES
+i want someone who lost a title match to drop out of the top 5 every time. maybe it's a big points drop that decays
+debuff that is reduced by each win afterwards. let's say it's a 20% drop, then your next two wins - if they're within a month - are more heavily weighted.
+if you get right back on the horse then you get most of your lost points back
+
+SO.
+once i get a few months of cagematch data, we get a version up and running with the BASIC formula. start expanding it, tweaking values and seeing what happens, adding tons of comments to track what each part does
+

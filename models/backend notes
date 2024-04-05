@@ -1,0 +1,54 @@
+DATA TYPES:
+
+WRESTLER
+already wrote this one out
+
+TEAM
+name
+members: [{wrestlerid, wrestlername}]
+powerlevel:
+faction: boolean
+active: boolean
+
+SHOW
+name (dynamite, rampage, etc)
+aired (youtube, tbs, tnt, ppv)
+date
+matches [{basic X vs Y string, match id}]
+links [urls to find show (ppv services, tnt/tbs website, aew+, youtube)]
+
+MATCH
+participants [{wrestler/team id, wrestler/team name, side (used to calc tags without existing teams)}]
+winner (wrestler/team id & name)
+loser (wrestler/team id & name)
+time (optional field)
+win type (sub, pin, dq, etc)
+win move (string)
+
+WrestlerMatchProxy
+wrestlerID
+matchID
+wrestlername
+wrestlerpower   //saves the wrestler's power level at the time of the match, maybe?
+
+TITLE
+name
+champions [reigns]
+
+titleProxy
+titleID
+matchID
+reignIn: title reign of champion coming in
+reignOut: optional, title reign of champion coming out
+
+REIGN
+champions [(wrestler/team)]
+title [title]
+startshow
+endshow
+defenses [matches]
+  use defenses to calc beginning/end - include the match where the title was won, when counting defenses use defenses.length - 1
+
+maybe proxies? we'll see if they seem necessary
+
+FUTURE: match ratings from users?
