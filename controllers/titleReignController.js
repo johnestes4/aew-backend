@@ -17,9 +17,7 @@ exports.getAllTitleReigns = async (req, res) => {
       req.query
     )
       .filter()
-      .sort()
-      .limitFields()
-      .paginate();
+      .sort();
     // await executes the query and returns all the documents
     const titleReigns = await features.query;
 

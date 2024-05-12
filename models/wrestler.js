@@ -21,6 +21,14 @@ const wrestlerSchema = new Schema(
       type: Number,
       default: 1000,
     },
+    startPower: Number,
+    boosts: [
+      {
+        startPower: Number,
+        ppv: Boolean,
+        date: Date,
+      },
+    ],
     moves: [String],
     team: {
       type: mongoose.Schema.Types.ObjectId,

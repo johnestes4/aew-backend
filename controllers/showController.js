@@ -1,13 +1,24 @@
 const Show = require('./../models/show');
+const Match = require('./../models/match');
+const Wrestler = require('./../models/wrestler');
 const APIFeatures = require('./../utils/apiFeatures');
 
 exports.getAllShows = async (req, res) => {
   try {
-    const features = new APIFeatures(Show.find(), req.query)
+    const features = new APIFeatures(
+      Show.find().populate({
+        path: 'matches',
+        model: Match,
+        populate: {
+          path: 'winner loser',
+          model: Wrestler,
+        },
+      }),
+      req.query
+    )
       .filter()
-      .sort()
-      .limitFields()
-      .paginate();
+      .sort('date')
+      .limitFields();
     // await executes the query and returns all the documents
     const shows = await features.query;
 
@@ -28,7 +39,14 @@ exports.getAllShows = async (req, res) => {
 
 exports.getShow = async (req, res) => {
   try {
-    const show = await Show.findById(req.params.id);
+    const show = await Show.findById(req.params.id).populate({
+      path: 'matches',
+      model: Match,
+      populate: {
+        path: 'winner loser',
+        model: Wrestler,
+      },
+    });
 
     res.status(200).json({
       status: 'success',

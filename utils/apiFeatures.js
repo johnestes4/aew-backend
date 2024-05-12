@@ -42,11 +42,14 @@ class APIFeatures {
     // //using .where and .equals in sequence creates the conditions
     // //can also use .lt for less than, .lte for less than or equal, .gt greater than, and some others you can look up if you need em
   }
-  sort() {
+  sort(toSort) {
     /* ======= SORTING ======= */
 
     //url queries: sort=X sorts ascending, sort=-X sorts descending
     // secondary sort: sort=X,Y
+    if (toSort) {
+      this.queryString.sort = toSort;
+    }
     if (this.queryString.sort) {
       // this will turn the 'X,Y' into 'X Y', which is what query.sort wants
       const sortBy = this.queryString.sort.split(',').join(' ');
@@ -61,9 +64,12 @@ class APIFeatures {
     //this will be useful for getting shows & matches in the right order to then calculate power
     return this;
   }
-  limitFields() {
+  limitFields(fields) {
     /* ======= FIELD LIMITING ======= */
     // URL: fields=x,y,z
+    if (fields) {
+      this.queryString.fields = fields;
+    }
 
     if (this.queryString.fields) {
       //works a lot like sorting. .select only returns the fields referenced in the string

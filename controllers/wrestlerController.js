@@ -6,8 +6,30 @@ exports.getAllWrestlers = async (req, res) => {
     const features = new APIFeatures(Wrestler.find(), req.query)
       .filter()
       .sort()
-      .limitFields()
-      .paginate();
+      .limitFields();
+    // await executes the query and returns all the documents
+    const wrestlers = await features.query;
+
+    res.status(200).json({
+      status: 'success',
+      results: wrestlers.length,
+      data: {
+        wrestlers,
+      },
+    });
+  } catch (err) {
+    res.status(404).json({
+      status: 'fail',
+      message: err,
+    });
+  }
+};
+exports.getWrestlerRankings = async (req, res) => {
+  try {
+    const features = new APIFeatures(Wrestler.find(), req.query)
+      .filter()
+      .sort('-power')
+      .limitFields('name,power,male');
     // await executes the query and returns all the documents
     const wrestlers = await features.query;
 
@@ -88,6 +110,37 @@ exports.deleteWrestler = async (req, res) => {
     res.status(204).json({
       status: 'success',
       data: null,
+    });
+  } catch (err) {
+    res.status(404).json({
+      status: 'fail',
+      message: err,
+    });
+  }
+};
+
+exports.cleanAliases = async (req, res) => {
+  try {
+    const features = new APIFeatures(Wrestler.find(), req.query)
+      .filter()
+      .sort('-power')
+      .limitFields('name,aliases');
+    // await executes the query and returns all the documents
+    const wrestlers = await features.query;
+
+    var wresMap = new Map();
+    for (let wres of wrestlers) {
+      if (wrestler.aliases.length < 1) {
+        continue;
+      }
+      for (let a of wrestler.aliases) {
+        wresMap.set(a, wres._id);
+      }
+    }
+
+    res.status(201).json({
+      status: 'success',
+      data: 'Check the DB to see how successful it was!',
     });
   } catch (err) {
     res.status(404).json({
