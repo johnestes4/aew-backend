@@ -13,6 +13,7 @@ router
   .get(wrestlerController.getAllWrestlers)
   .post(wrestlerController.createWrestler);
 router.route('/rankings').get(wrestlerController.getWrestlerRankings);
+router.route('/cleanaliases').get(wrestlerController.cleanAliases);
 router
   .route('/:id')
   .get(wrestlerController.getWrestler)

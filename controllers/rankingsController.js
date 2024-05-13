@@ -19,6 +19,7 @@ function calcWrestlerPower(wrestler, currentDate) {
   var loseStreak = 0;
   for (let boost of wrestler.boosts) {
     var modifier = 1;
+
     var daysSince = Math.round(
       (currentDate.getTime() - boost.date.getTime()) / (1000 * 60 * 60 * 24)
     );
@@ -35,9 +36,11 @@ function calcWrestlerPower(wrestler, currentDate) {
     } else if (daysSince >= 28) {
       boost.ppv ? (modifier = 0.6) : (modifier = 0.5);
     } else if (daysSince >= 14) {
-      modifier = 0.75;
+      boost.win == 1 ? (modifier = 1) : 0.8;
     } else if (daysSince >= 7) {
-      modifier = 0.9;
+      boost.win == 1 ? (modifier = 1.5) : 1;
+    } else {
+      boost.win == 1 ? (modifier = 2) : 1.25;
     }
     currentPower += boost.startPower * modifier;
     if (
@@ -179,6 +182,7 @@ exports.calcRankings = async (req, res) => {
           }
           wres.boosts.push({
             startPower: powChange,
+            win: 1,
             ppv: show.ppv,
             date: show.date,
           });
@@ -193,6 +197,7 @@ exports.calcRankings = async (req, res) => {
           wresMap.set(wres.name, {
             name: wres.name,
             power: wres.power,
+            startPower: wres.startPower,
             boosts: wres.boosts,
             id: wres.id,
           });
@@ -238,6 +243,7 @@ exports.calcRankings = async (req, res) => {
             }
             wres.boosts.push({
               startPower: powChange,
+              win: 0,
               ppv: show.ppv,
               date: show.date,
             });
@@ -253,6 +259,7 @@ exports.calcRankings = async (req, res) => {
             wresMap.set(wres.name, {
               name: wres.name,
               power: wres.power,
+              startPower: wres.startPower,
               boosts: wres.boosts,
               id: wres.id,
             });
@@ -266,6 +273,9 @@ exports.calcRankings = async (req, res) => {
     //
     for (let [key, value] of wresMap) {
       const wres = await Wrestler.findById(value.id);
+      if (wres == null) {
+        continue;
+      }
       wres.boosts = value.boosts;
       wres.power = calcWrestlerPower(wres, latestDate);
       wres.startPower = value.startPower;

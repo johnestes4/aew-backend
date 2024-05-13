@@ -3,11 +3,13 @@ const morgan = require('morgan');
 const Title = require('./models/title');
 const Wrestler = require('./models/wrestler');
 const Show = require('./models/show');
+const Team = require('./models/team');
 const Match = require('./models/match');
 
 const startupRouter = require('./routes/startupRoutes');
 const titleReignRouter = require('./routes/titleReignRoutes');
 const wrestlerRouter = require('./routes/wrestlerRoutes');
+const teamRouter = require('./routes/teamRoutes');
 const showRouter = require('./routes/showRoutes');
 const matchRouter = require('./routes/matchRoutes');
 const rankingRouter = require('./routes/rankingRoutes');
@@ -54,6 +56,7 @@ app.use('/api/startup', startupRouter);
 app.use('/api/titleReigns', titleReignRouter);
 app.use('/api/wrestlers', wrestlerRouter);
 app.use('/api/shows', showRouter);
+app.use('/api/teams', teamRouter);
 app.use('/api/matches', matchRouter);
 app.use('/api/rankings', rankingRouter);
 

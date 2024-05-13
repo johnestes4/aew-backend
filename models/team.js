@@ -15,6 +15,13 @@ const teamSchema = new mongoose.Schema(
     power: Number,
     faction: Boolean,
     active: Boolean,
+    boosts: [
+      {
+        startPower: Number,
+        ppv: Boolean,
+        date: Date,
+      },
+    ],
   },
   { usePushEach: true }
 );

@@ -25,6 +25,7 @@ const wrestlerSchema = new Schema(
     boosts: [
       {
         startPower: Number,
+        win: Number,
         ppv: Boolean,
         date: Date,
       },
