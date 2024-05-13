@@ -8,10 +8,12 @@ const teamSchema = new mongoose.Schema(
       required: [true, 'Team must have name'],
       trim: true,
     },
-    wrestlers: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'wrestler',
-    },
+    wrestlers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'wrestler',
+      },
+    ],
     power: Number,
     faction: Boolean,
     active: Boolean,

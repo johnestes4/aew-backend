@@ -3,6 +3,7 @@ const Wrestler = require('./../models/wrestler');
 const Show = require('./../models/show');
 const showController = require('../controllers/showController');
 const APIFeatures = require('../utils/apiFeatures');
+const Team = require('./../models/team');
 
 powerCalc = async (matchId, wresMap) => {
   try {
@@ -30,17 +31,20 @@ function calcWrestlerPower(wrestler, currentDate) {
     } else if (daysSince >= 112) {
       boost.ppv ? (modifier = 0.15) : (modifier = 0.1);
     } else if (daysSince >= 84) {
-      boost.ppv ? (modifier = 0.2) : (modifier = 0.15);
+      boost.ppv ? (modifier = 0.25) : (modifier = 0.15);
     } else if (daysSince >= 56) {
-      boost.ppv ? (modifier = 0.33) : (modifier = 0.25);
+      boost.ppv ? (modifier = 0.5) : (modifier = 0.33);
     } else if (daysSince >= 28) {
-      boost.ppv ? (modifier = 0.6) : (modifier = 0.5);
+      boost.ppv ? (modifier = 0.75) : (modifier = 0.6);
     } else if (daysSince >= 14) {
-      boost.win == 1 ? (modifier = 1) : 0.8;
+      boost.win == 1 ? (modifier = 2) : 1;
+      boost.ppv ? (modifier = modifier * 1.1) : (modifier = modifier * 1);
     } else if (daysSince >= 7) {
-      boost.win == 1 ? (modifier = 1.5) : 1;
+      boost.win == 1 ? (modifier = 3) : 2;
+      boost.ppv ? (modifier = modifier * 1.15) : (modifier = modifier * 1);
     } else {
-      boost.win == 1 ? (modifier = 2) : 1.25;
+      boost.win == 1 ? (modifier = 5) : 3;
+      boost.ppv ? (modifier = modifier * 1.2) : (modifier = modifier * 1);
     }
     currentPower += boost.startPower * modifier;
     if (
@@ -67,6 +71,11 @@ exports.calcRankings = async (req, res) => {
     var latestDate = null;
     var showCount = 0;
     var wresMap = new Map();
+    var teams = Team.find();
+    var teamMap = new Map();
+    for (let team of teams) {
+      teamMap.set(JSON.stringify(team.wrestlers.sort()), team);
+    }
     for (let show of shows) {
       var startingPower = 500;
       latestDate = show.date;
@@ -74,7 +83,7 @@ exports.calcRankings = async (req, res) => {
       // if (showCount > 50) {
       //   break;
       // }
-      console.log(`Beginning show ${showCount}...`);
+      console.log(`Calculating show ${showCount}...`);
       var showMod = 1;
       if (
         show.name.includes('Dark') ||
@@ -92,7 +101,7 @@ exports.calcRankings = async (req, res) => {
           model: Wrestler,
         });
         var totalSides = 0;
-        const xFactor = 50;
+        const xFactor = 250;
         const kFactor = 200;
         var matchWeight = 1;
         if (match.title.length > 0) {
@@ -109,6 +118,9 @@ exports.calcRankings = async (req, res) => {
           it needs to average every SIDE in a match, then be able to average all the SIDES except the one it's currently calculating
           in team situations, it can apply the same expchange to both teammates - calced based on their average together
         */
+        var winnerAvg;
+        var loserAvg;
+
         var winnerSide = {
           names: [],
           powers: [],
@@ -129,9 +141,33 @@ exports.calcRankings = async (req, res) => {
           }
           totalSides++;
           winnerSide.names.push(w.name);
+          if (wresMap.get(w.name).boosts.length > 0) {
+            //if the wrestler has any boosts, then calculate their most recent power - BEFORE adding it to the average used to rate the newest boost
+            wresMap.get(w.name).power = calcWrestlerPower(
+              wresMap.get(w.name),
+              show.date
+            );
+          }
           winnerSide.powers.push(wresMap.get(w.name).power);
           var powerSum = winnerSide.powers.reduce((a, b) => a + b, 0);
           winnerSide.avgPower = powerSum / winnerSide.powers.length;
+          winnerAvg = winnerSide.avgPower;
+        }
+        var winnerKey = JSON.stringify(match.winner.sort());
+        //this should change what it's calcing with if a team exists
+        if (teamMap.has(winnerKey)) {
+          var team = teamMap.get(winnerKey);
+          if (team.startPower == null) {
+            //since startpower doesn't exist in the team object in the backend, this should only fire on the first time a team is calced
+            //so they get the average of the members at the FIRST TIME THEY TEAMED
+            //might be worth eventually doing a specific thing for trios where the avg uses the highest ranked 2man team and the third man
+            teamMap.get(winnerKey).startPower = winnerSide.avgPower * 0.8;
+          }
+          teamMap.get(winnerKey).power = calcWrestlerPower(
+            teamMap.get(winnerKey),
+            show.date
+          );
+          winnerAvg = team.power;
         }
         var loserSides = [];
         for (let w2 of match.loser) {
@@ -155,6 +191,12 @@ exports.calcRankings = async (req, res) => {
             }
             totalSides++;
             newLoser.names.push(w.name);
+            if (wresMap.get(w.name).boosts.length > 0) {
+              wresMap.get(w.name).power = calcWrestlerPower(
+                wresMap.get(w.name),
+                show.date
+              );
+            }
             newLoser.powers.push(wresMap.get(w.name).power);
           }
           var powerSum = newLoser.powers.reduce((a, b) => a + b, 0);
@@ -186,7 +228,6 @@ exports.calcRankings = async (req, res) => {
             ppv: show.ppv,
             date: show.date,
           });
-          wres.power = calcWrestlerPower(wres, show.date);
           if (wres.power === Number.NEGATIVE_INFINITY) {
             console.log('---BROKE HERE---');
             console.log(`${show.name} ---- ${show.date}`);
@@ -241,13 +282,13 @@ exports.calcRankings = async (req, res) => {
             if (wres.boosts === undefined) {
               wres.boosts = [];
             }
+            wres.power = calcWrestlerPower(wres, show.date);
             wres.boosts.push({
               startPower: powChange,
               win: 0,
               ppv: show.ppv,
               date: show.date,
             });
-            wres.power = calcWrestlerPower(wres, show.date);
             if (wres.power === Number.NEGATIVE_INFINITY) {
               console.log('---BROKE HERE---');
               console.log(`${show.name} ---- ${show.date}`);
@@ -279,9 +320,8 @@ exports.calcRankings = async (req, res) => {
       wres.boosts = value.boosts;
       wres.power = calcWrestlerPower(wres, latestDate);
       wres.startPower = value.startPower;
-      if (value.name == 'Adam Page') {
-        console.log('Adam Page');
-        console.log(wres.power);
+      if (value.name == 'Orange Cassidy') {
+        console.log(`Orange Cassidy | ${wres.power}`);
       }
       if (wres.power === null) {
         console.log('---BROKE HERE---');

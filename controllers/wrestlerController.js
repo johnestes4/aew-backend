@@ -150,7 +150,7 @@ exports.cleanAliases = async (req, res) => {
         var badWres = await Wrestler.findOne({ name: a });
         // throw Error('STOPPING HERE');
         if (badWres) {
-          console.log(badWres.name);
+          // console.log(badWres.name);
           // if (badWres.length > 1) {
           // }
           // console.log(badWres.name);
@@ -165,22 +165,24 @@ exports.cleanAliases = async (req, res) => {
     //go thru matches, replace bad ids with good ones
     for (let match of matches) {
       var needsUpdate = false;
-      for (let w of match.winner) {
+      for (let i = 0; i < match.winner.length; i++) {
+        const w = match.winner[i];
         if (wresMap.has(w.toString())) {
           needsUpdate = true;
-          console.log(`<<OLD | ${wresMap.get(w.toString()).goodId} | OLD>>`);
-          w = wresMap.get(w.toString()).goodId;
-          console.log('<<NEW | ' + w + ' | NEW>>');
+          // console.log(`<<OLD | ${w} | OLD>>`);
+          match.winner[i] = wresMap.get(w.toString()).goodId;
+          // console.log('<<NEW | ' + w + ' | NEW>>');
         }
       }
       for (let l1 of match.loser) {
-        for (let l2 of l1) {
+        for (let i = 0; i < l1.length; i++) {
+          const l2 = l1[i];
           var l2index = 0;
           if (l2 !== null) {
             if (wresMap.has(l2.toString())) {
               needsUpdate = true;
               // console.log(`${l2} > ${wresMap.get(l2.toString()).goodId}`);
-              l2 = wresMap.get(l2.toString()).goodId;
+              l1[i] = wresMap.get(l2.toString()).goodId;
             }
           } else {
             needsUpdate = true;
@@ -190,26 +192,27 @@ exports.cleanAliases = async (req, res) => {
         }
       }
       if (needsUpdate) {
-        // await Match.findByIdAndUpdate(match._id, match);
+        await Match.findByIdAndUpdate(match._id, match);
       }
     }
     //same for reigns
     for (let reign of reigns) {
       var needsUpdate = false;
-      for (let c of reign.champion) {
+      for (let i = 0; i < reign.champion.length; i++) {
+        c = reign.champion[i];
         if (wresMap.has(c.toString())) {
           needsUpdate = true;
-          c = wresMap.get(c.toString()).goodId;
+          reign.champion[i] = wresMap.get(c.toString()).goodId;
         }
       }
       if (needsUpdate) {
-        // await TitleReign.findByIdAndUpdate(reign._id, reign);
+        await TitleReign.findByIdAndUpdate(reign._id, reign);
       }
     }
     //NOW we go delete all the, hopefully now fully obsolete, alias wrestlers.
     for (let [key, value] of wresMap) {
       // console.log(key);
-      // await Wrestler.findByIdAndDelete(key);
+      await Wrestler.findByIdAndDelete(key);
     }
 
     res.status(201).json({
