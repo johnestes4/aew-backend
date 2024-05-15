@@ -5,14 +5,32 @@ const showController = require('../controllers/showController');
 const APIFeatures = require('../utils/apiFeatures');
 const Team = require('./../models/team');
 
-powerCalc = async (matchId, wresMap) => {
-  try {
-    return wresMap;
-  } catch (err) {
-    console.log(err);
-    return err;
+function calcShowMod(show, match, win) {
+  var showMod = 1;
+  if (
+    show.name.includes('Dark') ||
+    show.name.includes('Elevation') ||
+    show.name.includes('Tournament')
+  ) {
+    // startingPower = 100;
+    showMod = 0.5;
+  } else if (match.matchType.toLowerCase().includes('dark')) {
+    showMod = 0.25;
+  } else if (show.ppv) {
+    if (win && match.mainEvent) {
+      showMod = 1.5;
+    } else if (match.preshow) {
+      showMod = 1.15;
+    } else if (win && !match.mainEvent) {
+      showMod = 1.25;
+    } else if (!win && match.mainEvent) {
+      showMod = 0.8;
+    } else if (!win && !match.mainEvent) {
+      showMod = 0.9;
+    }
   }
-};
+  return showMod;
+}
 
 function calcWrestlerPower(wrestler, currentDate) {
   //IDEA: modifier based on how long boosts is, ie how many matches a person/team has had
@@ -111,6 +129,7 @@ function calcWrestlerPower(wrestler, currentDate) {
 }
 
 function calcStreak(wres, power) {
+  var debugName = 'ftr';
   var streak = 0;
   var worldStreak = 0;
   var secondaryStreak = 0;
@@ -135,6 +154,17 @@ function calcStreak(wres, power) {
     i--
   ) {
     var boost = wres.boosts[i];
+    if (
+      debugName &&
+      i == wres.boosts.length - 1 &&
+      wres.name.toLowerCase() == debugName
+    ) {
+      console.log(boost);
+      console.log(
+        `${debugName} | I: ${i}/${wres.boosts.length - 1} | DATE: ${boost.date}`
+      );
+    }
+
     if (wresSize == boost.sideSize) {
       matchingCount++;
 
@@ -173,14 +203,11 @@ function calcStreak(wres, power) {
         }
         titleCount++;
       }
-      if (wres.name.toUpperCase() == 'DARK ORDER (SILVER & REYNOLDS)') {
+      if (wres.name.toLowerCase() == debugName) {
         console.log(
-          `DARK ORDER | ${streak} | LR: ${lastResult} | WIN: ${boost.win} | ${boost.startPower}`
+          `${debugName} | ${streak} | I: ${i}/${wres.boosts.length - 1} | LR: ${lastResult} | WIN: ${boost.win} | DATE: ${boost.date} | TITLE: ${boost.titleMod} | STARTPOWER: ${boost.startPower}`
         );
       }
-      // if (wres.name == 'Adam Copeland') {
-      //   console.log(`COPE | ${streak} | ${boost.startPower}`);
-      // }
     }
     if ((singlesCount >= 5 && titleCount >= 5) || matchingCount >= 15) {
       break;
@@ -188,7 +215,7 @@ function calcStreak(wres, power) {
   }
   //arr 1: debuffs for losing streak. arr 2: buffs for winning streak
   var buffs = [
-    [-0.1, -0.11, -0.12, -0.14, -0.16, -0.2, -0.25, -0.3, -0.3],
+    [-0.1, -0.15, -0.2, -0.25, -0.3, -0.35, -0.4, -0.5, -0.5],
     [0.05, 0.06, 0.08, 0.1, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15],
   ];
   //arr 1: buffs for no title streak - ie all 1. arr 2: secondary titles. arr 3: world titles
@@ -245,17 +272,8 @@ exports.calcRankings = async (req, res) => {
       // if (showCount > 20) {
       //   break;
       // }
-      console.log(`Calculating show ${showCount}...`);
-      var showMod = 1;
-      if (
-        show.name.includes('Dark') ||
-        show.name.includes('Elevation') ||
-        show.name.includes('Tournament')
-      ) {
-        // startingPower = 100;
-        showMod = 0.5;
-      } else if (show.ppv) {
-        showMod = 1.25;
+      if (showCount == 1 || showCount % 50 == 0 || showCount == shows.length) {
+        console.log(`Calculating show ${showCount}...`);
       }
       for (let mId of show.matches) {
         const match = await Match.findById(mId).populate({
@@ -430,18 +448,8 @@ exports.calcRankings = async (req, res) => {
             1 / (1 + (10 ^ (loserSum / loserSides.length / xFactor)));
           const wres = wresMap.get(w.name);
 
+          var showMod = calcShowMod(show, match, true);
           var powChange = titleMod * kFactor * (1 - expWin) * showMod;
-          if (
-            match.matchType.toLowerCase().includes('dark') ||
-            (match.preshow && !show.ppv)
-          ) {
-            powChange = titleMod * kFactor * (1 - expWin) * 0.1;
-          } else if (match.preshow && show.ppv) {
-            powChange = titleMod * kFactor * (1 - expWin) * 1.1;
-          }
-          if (match.mainEvent) {
-            powChange = titleMod * kFactor * (1 - expWin) * (showMod + 0.5);
-          }
 
           if (wres.boosts === undefined) {
             wres.boosts = [];
@@ -468,15 +476,15 @@ exports.calcRankings = async (req, res) => {
             var newBoostString = JSON.stringify(newBoost);
             var found = false;
             for (let b of team.boosts) {
-              // var b2 = {
-              //   startPower: b.startPower,
-              //   win: b.win,
-              //   sideSize: b.sideSize,
-              //   showMod: b.showMod,
-              //   titleMod: b.titleMod,
-              //   date: b.date,
-              // };
-              if (JSON.stringify(b) == newBoostString) {
+              var b2 = {
+                startPower: b.startPower,
+                win: b.win,
+                sideSize: b.sideSize,
+                showMod: b.showMod,
+                titleMod: b.titleMod,
+                date: b.date,
+              };
+              if (JSON.stringify(b2) == newBoostString) {
                 found = true;
                 break;
               }
@@ -550,18 +558,8 @@ exports.calcRankings = async (req, res) => {
             var powerSum = opponentPowers.reduce((a, b) => a + b, 0);
             var expWin = 1 / (1 + (10 ^ (powerSum / opponentCount / xFactor)));
             const wres = wresMap.get(w.name);
+            var showMod = calcShowMod(show, match, false);
             var powChange = titleMod * kFactor * (0 - expWin) * showMod;
-            if (
-              match.matchType.toLowerCase().includes('dark') ||
-              (match.preshow && !show.ppv)
-            ) {
-              powChange = titleMod * kFactor * (0 - expWin) * 1.5;
-            } else if (match.preshow && show.ppv) {
-              powChange = titleMod * kFactor * (0 - expWin) * 0.9;
-            }
-            if (match.mainEvent) {
-              powChange = titleMod * kFactor * (0 - expWin) * (showMod - 0.1);
-            }
 
             if (wres.boosts === undefined) {
               wres.boosts = [];

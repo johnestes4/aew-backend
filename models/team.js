@@ -19,6 +19,12 @@ const teamSchema = new mongoose.Schema(
     //first: make array JUST OF THE IDs. probably .toString() versions
     //JSON.stringify(wresArray.sort())
     comboID: { type: String, unique: true },
+    //
+    //subTeams would only activate on trios - attach the comboIDs for each two-man team that's part of the trio
+    //then trios matches could also have a slight effect on the teams in them
+    //ie - bullet club gold trio matches should give some amount of boost to the gunns
+    //might help the issues right now in the tag division rankings
+    subTeams: [String],
     power: Number,
     startPower: Number,
     faction: Boolean,
