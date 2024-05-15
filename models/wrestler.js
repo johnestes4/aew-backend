@@ -14,6 +14,10 @@ const wrestlerSchema = new Schema(
     img: String,
     nickname: String,
     aliases: [String],
+    allElite: {
+      type: Boolean,
+      default: false,
+    },
     male: {
       type: Boolean,
       default: true,

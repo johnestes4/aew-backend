@@ -59,7 +59,7 @@ function calcWrestlerPower(wrestler, currentDate) {
       timeGap = 28;
     } else if (daysSince >= 14) {
       modifier = 0.5;
-      ppvModifier = 1.25;
+      ppvModifier = 1.15;
       timeGap = 14;
     } else if (daysSince >= 7) {
       modifier = 0.75;
@@ -70,7 +70,7 @@ function calcWrestlerPower(wrestler, currentDate) {
     } else {
       modifier = 2.25;
       ppvModifier = 1.5;
-      winModifier = 1.5;
+      winModifier = 1.25;
       // teamModifier = 0.75;
     }
     var finalBoost = boost.startPower * boost.showMod;
@@ -82,7 +82,7 @@ function calcWrestlerPower(wrestler, currentDate) {
       if (boost.titleMod > 1) {
         finalBoost = finalBoost * (boost.titleMod * 1);
       } else if (boost.titleMod > 1.5) {
-        finalBoost = finalBoost * (boost.titleMod * 1);
+        finalBoost = finalBoost * (boost.titleMod * 1.1);
       }
     } else if (boost.titleMod > 1) {
       // var titleMod = 1 + Math.abs(boost.titleMod - 1) * 0.75;
@@ -117,35 +117,41 @@ function calcStreak(wres, power) {
   var lastResult = null;
   var lastTitleResult = null;
   var wresSize = 1;
+  var titleStreakStop = false;
+  var singlesCount = 0;
+  var titleCount = 0;
   if (wres.wrestlers) {
     wresSize = wres.wrestlers.length;
   }
 
   var whichTitleBuffs = 0;
+
+  //it should go backwards thru the last 15 matches to find the last 5 matches of the proper size and the last 5 title matches
   for (
     let i = wres.boosts.length - 1;
-    i > wres.boosts.length - 11 && i >= 0;
+    i > wres.boosts.length - 16 && i >= 0;
     i--
   ) {
     var boost = wres.boosts[i];
     if (wresSize == boost.sideSize) {
       if (lastResult === null || boost.win == lastResult) {
-        if (i > wres.boosts.length - 6) {
+        if (singlesCount < 5) {
           lastResult = boost.win;
+          singlesCount++;
           streak++;
         }
       }
-      if (boost.titleMod > 1) {
-        //this should reset the streak to match the most recent title match
-        if (lastTitleResult !== boost.win) {
-          lastTitleResult = boost.win;
-          secondaryStreak = 0;
-          worldStreak = 0;
+      if (boost.titleMod > 1 && titleCount < 5) {
+        // it goes BACKWARDS, not FORWARDS, so it has to stop the moment the win result stops matching
+        if (lastTitleResult !== null && lastTitleResult !== boost.win) {
+          titleStreakStop = true;
         }
-
-        if (wres.name == 'Toni Storm') {
-          console.log(`<<<${boost.titleMod} | ${titleStreak}>>>`);
+        if (titleStreakStop) {
+          continue;
         }
+        lastTitleResult = boost.win;
+        secondaryStreak = 0;
+        worldStreak = 0;
         if (boost.titleMod == 1.25) {
           if (secondaryStreak < 5) {
             secondaryStreak++;
@@ -157,19 +163,29 @@ function calcStreak(wres, power) {
           }
           whichTitleBuffs = 2;
         }
+        titleCount++;
       }
+      if (wres.name.toUpperCase() == 'DARK ORDER (SILVER & REYNOLDS)') {
+        console.log(`DARK ORDER | ${streak} | ${boost.startPower}`);
+      }
+      if (wres.name == 'Adam Copeland') {
+        console.log(`COPE | ${streak} | ${boost.startPower}`);
+      }
+    }
+    if (singlesCount >= 5 && titleCount >= 5) {
+      break;
     }
   }
   //arr 1: debuffs for losing streak. arr 2: buffs for winning streak
   var buffs = [
     [-0.1, -0.11, -0.12, -0.14, -0.16],
-    [0.04, 0.05, 0.07, 0.1, 0.15],
+    [0.05, 0.06, 0.08, 0.1, 0.15],
   ];
   //arr 1: buffs for no title streak - ie all 1. arr 2: secondary titles. arr 3: world titles
   var titleBuffs = [
     [0, 0, 0, 0, 0, 0],
     [0, 0.05, 0.07, 0.1, 0.14, 0.2],
-    [0, 0.1, 0.12, 0.15, 0.2, 0.25],
+    [0, 0.15, 0.16, 0.18, 0.2, 0.25],
   ];
   var titleStreak = 0;
   if (worldStreak > 0) {
@@ -177,16 +193,17 @@ function calcStreak(wres, power) {
   } else if (secondaryStreak > 0) {
     titleStreak = secondaryStreak;
   }
-  var streakMod = buffs[lastResult][streak - 1];
+
+  //if it gets here without any sort of streak, just gotta ensure it doesn't have a negative number and that lastresult isn't null
+  var streakMod = 0;
+  if (lastResult !== null) {
+    streakMod = buffs[lastResult][streak - 1];
+  }
   var titleMod = titleBuffs[whichTitleBuffs][titleStreak];
   if (lastTitleResult == 0) {
     titleMod = titleMod * -1;
   }
   power = power * (1 + streakMod) * (1 + titleMod);
-
-  if (wres.name == 'Toni Storm') {
-    // console.log(`Toni | ${titleStreak}`);
-  }
 
   return power;
 }
@@ -206,12 +223,12 @@ exports.calcRankings = async (req, res) => {
     var teamMap = new Map();
     for (let team of teams) {
       //reset the boosts on the teams every time - since we're pulling from the DB for these, gotta make sure the slate is clean
-      team.startPower = 5000;
+      team.startPower = 4000;
       team.boosts = [];
       teamMap.set(JSON.stringify(team.wrestlers.sort()), team);
     }
     for (let show of shows) {
-      var startingPower = 5000;
+      var startingPower = 4000;
       latestDate = show.date;
       showCount++;
       //use this to end the calc prematurely if we're testing
@@ -239,11 +256,11 @@ exports.calcRankings = async (req, res) => {
         // k-factor affects how much of each guy's points is up for grabs in any given match
         //startingPower/ 5, on a flat 5000v5000 matchup, would put 10% of each side on the line
         // increasing kfactor increases the point movement
-        const kFactor = startingPower / 6;
+        const kFactor = startingPower / 5;
         //x-factor affects the change brought on by the difference between winner and loser
         // a higher number seems to lead to bigger changes, but not by a ton
 
-        const xFactor = startingPower / 3;
+        const xFactor = startingPower / 2;
 
         var titleMod = 1;
         if (match.title.length > 0) {
@@ -280,13 +297,18 @@ exports.calcRankings = async (req, res) => {
           }
           winnerIDs.push(w._id);
           if (!wresMap.has(w.name)) {
-            wresMap.set(w.name, {
+            var newWres = {
               name: w.name,
               power: startingPower,
               startPower: startingPower,
               boosts: [],
               id: w._id,
-            });
+            };
+            if (!w.allElite) {
+              newWres.power = 2000;
+              newWres.startPower = 2000;
+            }
+            wresMap.set(w.name, newWres);
           }
           winnerSide.names.push(w.name);
           var wres = wresMap.get(w.name);
@@ -306,25 +328,7 @@ exports.calcRankings = async (req, res) => {
           team.male = match.winner[0].male;
           teamMap.set(winnerKey, team);
           if (team.startPower == null || team.startPower === undefined) {
-            //since startpower doesn't exist in the team object in the backend, this should only fire on the first time a team is calced
-            //so they get the average of the members at the FIRST TIME THEY TEAMED
-            //might be worth eventually doing a specific thing for trios where the avg uses the highest ranked 2man team and the third man
-            //that would require checking each 2man combo in a trio against the map - not impossible?
-            // if (winnerSide.avgPower * 0.5 > 1000) {
-            //   team.startPower = winnerSide.avgPower * 0.5;
-            // } else if (winnerSide.avgPower == 1000) {
-            //   team.startPower = 1000;
-            // } else {
-            //   team.startPower = winnerSide.avgPower * 0.5;
-            // }
-
-            //WE'RE JUST DOING 1000 ALL THE TIME BECAUSE ORANGE FUCKING CASSIDY KEEPS BREAKING MY RANKINGS
             team.startPower = startingPower;
-
-            // console.log(`SETTING ${team.name} TO ${team.startPower}`);
-            if (winnerSide.avgPower * 0.8 == NaN) {
-              throw Error(`${team.name} THREW NAN`);
-            }
           }
           team.power = calcWrestlerPower(team, show.date).power;
           teamMap.set(winnerKey, team);
@@ -354,13 +358,20 @@ exports.calcRankings = async (req, res) => {
             loserIDs.push(w._id);
             //wrestler not there yet - makes new map entry
             if (!wresMap.has(w.name)) {
-              wresMap.set(w.name, {
+              var newWres = {
                 name: w.name,
                 power: startingPower,
                 startPower: startingPower,
                 boosts: [],
                 id: w._id,
-              });
+              };
+              if (!w.allElite) {
+                newWres.power = 2000;
+                newWres.startPower = 2000;
+              }
+              if (!wresMap.has(w.name)) {
+                wresMap.set(w.name, newWres);
+              }
             }
             var wres = wresMap.get(w.name);
             newLoser.names.push(w.name);
@@ -441,8 +452,16 @@ exports.calcRankings = async (req, res) => {
               titleMod: titleMod,
               date: show.date,
             };
-            if (match.matchType.toLowerCase().includes('dark')) {
+            if (
+              match.matchType.toLowerCase().includes('dark') ||
+              (match.preshow && !show.ppv)
+            ) {
               newBoost.showMod = 0.5;
+            } else if (match.preshow && show.ppv) {
+              newBoost.showMod = 1.1;
+            }
+            if (match.mainEvent) {
+              newBoost.showMod = newBoost.showMod + 0.05;
             }
             var newBoostString = JSON.stringify(newBoost);
             var found = false;
@@ -476,8 +495,16 @@ exports.calcRankings = async (req, res) => {
             titleMod: titleMod,
             date: show.date,
           };
-          if (match.matchType.toLowerCase().includes('dark')) {
+          if (
+            match.matchType.toLowerCase().includes('dark') ||
+            (match.preshow && !show.ppv)
+          ) {
             newBoost.showMod = 0.5;
+          } else if (match.preshow && show.ppv) {
+            newBoost.showMod = 1.1;
+          }
+          if (match.mainEvent) {
+            newBoost.showMod = newBoost.showMod + 0.05;
           }
           wres.boosts.push(newBoost);
 
@@ -550,8 +577,16 @@ exports.calcRankings = async (req, res) => {
                 titleMod: titleMod,
                 date: show.date,
               };
-              if (match.matchType.toLowerCase().includes('dark')) {
+              if (
+                match.matchType.toLowerCase().includes('dark') ||
+                (match.preshow && !show.ppv)
+              ) {
                 newBoost.showMod = 0.5;
+              } else if (match.preshow && show.ppv) {
+                newBoost.showMod = 1.1;
+              }
+              if (match.mainEvent) {
+                newBoost.showMod = newBoost.showMod + 0.05;
               }
               var newBoostString = JSON.stringify(newBoost);
               var found = false;
@@ -587,8 +622,16 @@ exports.calcRankings = async (req, res) => {
               titleMod: titleMod,
               date: show.date,
             };
-            if (match.matchType.toLowerCase().includes('dark')) {
+            if (
+              match.matchType.toLowerCase().includes('dark') ||
+              (match.preshow && !show.ppv)
+            ) {
               newBoost.showMod = 0.5;
+            } else if (match.preshow && show.ppv) {
+              newBoost.showMod = 1.1;
+            }
+            if (match.mainEvent) {
+              newBoost.showMod = newBoost.showMod + 0.05;
             }
             wres.boosts.push(newBoost);
             if (wres.power === Number.NEGATIVE_INFINITY) {
@@ -628,7 +671,7 @@ exports.calcRankings = async (req, res) => {
       wres.startPower = value.startPower;
       if (calcPower.timeGap >= 84) {
         wres.active = false;
-      } else {
+      } else if (calcPower.timeGap <= 7) {
         wres.active = true;
       }
       if (value.name == 'Orange Cassidy') {
@@ -650,16 +693,13 @@ exports.calcRankings = async (req, res) => {
       team.boosts = value.boosts;
       var calcPower = calcWrestlerPower(value, latestDate);
       var power = calcStreak(value, calcPower.power.toFixed(0)).toFixed(0);
-      var powerDif = (power - 5000) * 1.25;
-      power = 5000 + powerDif;
-
-      team.power = power.toFixed(0);
+      team.power = power;
       team.startPower = value.startPower;
       team.male = value.male;
       if (calcPower.timeGap >= 140) {
         team.active = false;
-      } else {
-        team.active = true;
+      } else if (calcPower.timeGap <= 7) {
+        wres.active = true;
       }
       if (value.name == 'FTR') {
         console.log(`FTR | ${team.power}`);

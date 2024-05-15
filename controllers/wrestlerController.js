@@ -48,7 +48,7 @@ exports.getAllWrestlers = async (req, res) => {
 exports.getWrestlerRankings = async (req, res) => {
   try {
     const features = new APIFeatures(
-      Wrestler.find({ active: 'true' }),
+      Wrestler.find({ active: 'true', allElite: 'true' }),
       req.query
     )
       .filter()
