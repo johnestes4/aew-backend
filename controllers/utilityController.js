@@ -253,23 +253,31 @@ exports.scanTeams = async (req, res) => {
       if (team.wins >= 4 || team.times >= 6) {
         var partner1 = await Wrestler.findById(team.members[0]);
         var partner2 = await Wrestler.findById(team.members[1]);
-        var teamName = `${partner1.name}, ${partner2.name}`;
+        var teamName = `${partner1.name} & ${partner2.name}`;
         var partner3 = null;
         if (team.members.length == 3) {
           partner3 = await Wrestler.findById(team.members[2]);
-          teamName += `, ${partner3.name}`;
+          teamName += ` & ${partner3.name}`;
         }
-        console.log(`${teamName} | ${team.wins} WINS / ${team.times} MATCHES`);
-
-        const newTeam = {
-          name: teamName,
-          wrestlers: team.members,
-          power: 500,
-          faction: false,
-          active: true,
-          boosts: [],
-        };
-        await Team.create(newTeam);
+        var comboID = JSON.stringify(team.members.sort());
+        var foundTeam = await Team.findOne({
+          comboID: comboID,
+        });
+        if (!foundTeam) {
+          console.log(
+            `${teamName} | ${team.wins} WINS / ${team.times} MATCHES`
+          );
+          const newTeam = {
+            name: teamName,
+            wrestlers: team.members,
+            comboID: comboID,
+            power: 500,
+            faction: false,
+            active: true,
+            boosts: [],
+          };
+          await Team.create(newTeam);
+        }
       }
     }
     res.status(201).json({
