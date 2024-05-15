@@ -29,6 +29,10 @@ const wrestlerSchema = new Schema(
 
         startPower: Number,
         win: Number,
+        //if it's a 1v1 (or the guy's generally competing alone) set this to 1
+        //if it's a 2v2 tag, set to 2
+        //if it's trios set it to 3
+        sideSize: Number,
         showMod: Number,
         titleMod: Number,
         date: Date,

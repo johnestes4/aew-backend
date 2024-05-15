@@ -31,6 +31,7 @@ const teamSchema = new mongoose.Schema(
       {
         startPower: Number,
         win: Number,
+        sideSize: Number,
         showMod: Number,
         titleMod: Number,
         date: Date,

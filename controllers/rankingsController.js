@@ -22,8 +22,6 @@ function calcWrestlerPower(wrestler, currentDate) {
 
   var team = wrestler.wrestlers !== undefined;
   var currentPower = 0 + wrestler.startPower;
-  var winStreak = 0;
-  var loseStreak = 0;
   //this now returns an OBJECT so that it can also return the gap of time since the last match. this will be used to inactive people after 12 weeks (84 days)
   var timeGap = 0;
   for (let boost of wrestler.boosts) {
@@ -88,7 +86,7 @@ function calcWrestlerPower(wrestler, currentDate) {
       }
     } else if (boost.titleMod > 1) {
       // var titleMod = 1 + Math.abs(boost.titleMod - 1) * 0.75;
-      finalBoost = finalBoost * boost.titleMod;
+      finalBoost = finalBoost * boost.titleMod * 1.1;
       if (boost.titleMod > 1.5) {
         finalBoost = finalBoost * boost.titleMod;
       }
@@ -114,26 +112,81 @@ function calcWrestlerPower(wrestler, currentDate) {
 
 function calcStreak(wres, power) {
   var streak = 0;
+  var worldStreak = 0;
+  var secondaryStreak = 0;
   var lastResult = null;
+  var lastTitleResult = null;
+  var wresSize = 1;
+  if (wres.wrestlers) {
+    wresSize = wres.wrestlers.length;
+  }
+
+  var whichTitleBuffs = 0;
   for (
     let i = wres.boosts.length - 1;
-    i > wres.boosts.length - 6 && i >= 0;
+    i > wres.boosts.length - 11 && i >= 0;
     i--
   ) {
     var boost = wres.boosts[i];
-    if (lastResult === null || boost.win == lastResult) {
-      lastResult = boost.win;
-      streak++;
-    } else {
-      break;
+    if (wresSize == boost.sideSize) {
+      if (lastResult === null || boost.win == lastResult) {
+        if (i > wres.boosts.length - 6) {
+          lastResult = boost.win;
+          streak++;
+        }
+      }
+      if (boost.titleMod > 1) {
+        //this should reset the streak to match the most recent title match
+        if (lastTitleResult !== boost.win) {
+          lastTitleResult = boost.win;
+          secondaryStreak = 0;
+          worldStreak = 0;
+        }
+
+        if (wres.name == 'Toni Storm') {
+          console.log(`<<<${boost.titleMod} | ${titleStreak}>>>`);
+        }
+        if (boost.titleMod == 1.25) {
+          if (secondaryStreak < 5) {
+            secondaryStreak++;
+          }
+          whichTitleBuffs = 1;
+        } else if (boost.titleMod == 1.5) {
+          if (worldStreak < 5) {
+            worldStreak++;
+          }
+          whichTitleBuffs = 2;
+        }
+      }
     }
   }
   //arr 1: debuffs for losing streak. arr 2: buffs for winning streak
   var buffs = [
-    [-0.1, -0.11, -0.13, -0.17, -0.22],
-    [0.05, 0.07, 0.1, 0.14, 0.2],
+    [-0.1, -0.11, -0.12, -0.14, -0.16],
+    [0.04, 0.05, 0.07, 0.1, 0.15],
   ];
-  power = power * (1 + buffs[lastResult][streak - 1]);
+  //arr 1: buffs for no title streak - ie all 1. arr 2: secondary titles. arr 3: world titles
+  var titleBuffs = [
+    [0, 0, 0, 0, 0, 0],
+    [0, 0.05, 0.07, 0.1, 0.14, 0.2],
+    [0, 0.1, 0.12, 0.15, 0.2, 0.25],
+  ];
+  var titleStreak = 0;
+  if (worldStreak > 0) {
+    titleStreak = worldStreak;
+  } else if (secondaryStreak > 0) {
+    titleStreak = secondaryStreak;
+  }
+  var streakMod = buffs[lastResult][streak - 1];
+  var titleMod = titleBuffs[whichTitleBuffs][titleStreak];
+  if (lastTitleResult == 0) {
+    titleMod = titleMod * -1;
+  }
+  power = power * (1 + streakMod) * (1 + titleMod);
+
+  if (wres.name == 'Toni Storm') {
+    // console.log(`Toni | ${titleStreak}`);
+  }
 
   return power;
 }
@@ -192,14 +245,18 @@ exports.calcRankings = async (req, res) => {
 
         const xFactor = startingPower / 3;
 
-        var matchWeight = 1;
+        var titleMod = 1;
         if (match.title.length > 0) {
-          matchWeight = 1.5;
+          titleMod = 1.25;
           if (
             match.title[0] == '660f3be7b82fe2310454972d' || //world title
-            match.title[0] == '660f3be7b82fe23104549747' //women's world title
+            match.title[0] == '660f3be7b82fe23104549747' || //women's world title
+            match.title[0] == '660f3be7b82fe23104549847' //world tag team title
           ) {
-            matchWeight = 2.5;
+            titleMod = 1.5;
+          } else if (match.title[0] == '660f3be9b82fe2310454a1ec') {
+            //the FTW title has a small mod and doesn't trigger title streaks. it's non-sanctioned!
+            titleMod = 1.05;
           }
         }
 
@@ -361,7 +418,7 @@ exports.calcRankings = async (req, res) => {
             1 / (1 + (10 ^ (loserSum / loserSides.length / xFactor)));
           const wres = wresMap.get(w.name);
 
-          var powChange = matchWeight * kFactor * (1 - expWin) * showMod;
+          var powChange = titleMod * kFactor * (1 - expWin) * showMod;
           if (wres.boosts === undefined) {
             wres.boosts = [];
           }
@@ -379,8 +436,9 @@ exports.calcRankings = async (req, res) => {
             var newBoost = {
               startPower: powChange,
               win: 1,
+              sideSize: match.winner.length,
               showMod: showMod,
-              titleMod: matchWeight,
+              titleMod: titleMod,
               date: show.date,
             };
             if (match.matchType.toLowerCase().includes('dark')) {
@@ -392,7 +450,9 @@ exports.calcRankings = async (req, res) => {
               var b2 = {
                 startPower: b.startPower,
                 win: b.win,
+                sideSize: b.sideSize,
                 showMod: b.showMod,
+                titleMod: b.titleMod,
                 date: b.date,
               };
               if (JSON.stringify(b2) == newBoostString) {
@@ -411,8 +471,9 @@ exports.calcRankings = async (req, res) => {
           newBoost = {
             startPower: singleChange,
             win: 1,
+            sideSize: match.winner.length,
             showMod: showMod,
-            titleMod: matchWeight,
+            titleMod: titleMod,
             date: show.date,
           };
           if (match.matchType.toLowerCase().includes('dark')) {
@@ -471,7 +532,7 @@ exports.calcRankings = async (req, res) => {
             var powerSum = opponentPowers.reduce((a, b) => a + b, 0);
             var expWin = 1 / (1 + (10 ^ (powerSum / opponentCount / xFactor)));
             const wres = wresMap.get(w.name);
-            var powChange = matchWeight * kFactor * (0 - expWin) * showMod;
+            var powChange = titleMod * kFactor * (0 - expWin) * showMod;
             if (wres.boosts === undefined) {
               wres.boosts = [];
             }
@@ -484,8 +545,9 @@ exports.calcRankings = async (req, res) => {
               var newBoost = {
                 startPower: powChange,
                 win: 0,
+                sideSize: w2.length,
                 showMod: showMod,
-                titleMod: matchWeight,
+                titleMod: titleMod,
                 date: show.date,
               };
               if (match.matchType.toLowerCase().includes('dark')) {
@@ -497,7 +559,9 @@ exports.calcRankings = async (req, res) => {
                 var b2 = {
                   startPower: b.startPower,
                   win: b.win,
+                  sideSize: b.sideSize,
                   showMod: b.showMod,
+                  titleMod: b.titleMod,
                   date: b.date,
                 };
                 if (JSON.stringify(b2) == newBoostString) {
@@ -518,8 +582,9 @@ exports.calcRankings = async (req, res) => {
             var newBoost = {
               startPower: singleChange,
               win: 0,
+              sideSize: w2.length,
               showMod: showMod,
-              titleMod: matchWeight,
+              titleMod: titleMod,
               date: show.date,
             };
             if (match.matchType.toLowerCase().includes('dark')) {
