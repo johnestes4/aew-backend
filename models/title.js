@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
-const TitleReign = require('./titleReign');
+// const TitleReign = require('./titleReign');
+// const Wrestler = require('./wrestler');
+// const Team = require('./team');
 
 const titleSchema = new mongoose.Schema(
   {
@@ -8,6 +10,17 @@ const titleSchema = new mongoose.Schema(
       required: [true, 'Title must have name'],
       trim: true,
     },
+    currentChampion: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Wrestler',
+      },
+    ],
+    currentChampionTeam: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Team',
+    },
+    promotion: String,
     reigns: [
       {
         type: mongoose.Schema.Types.ObjectId,

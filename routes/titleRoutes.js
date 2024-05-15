@@ -1,5 +1,5 @@
 const express = require('express');
-const matchController = require('../controllers/matchController');
+const titleController = require('../controllers/titleController');
 
 const Title = require('../models/title');
 const Wrestler = require('../models/wrestler');
@@ -10,12 +10,12 @@ const router = express.Router();
 
 router
   .route('/')
-  .get(matchController.getAllMatches)
-  .post(matchController.createMatch);
+  .get(titleController.getAllTitles)
+  .post(titleController.createTitle);
 router
   .route('/:id')
-  .get(matchController.getMatch)
-  .patch(matchController.updateMatch)
-  .delete(matchController.deleteMatch);
+  .get(titleController.getTitle)
+  .patch(titleController.updateTitle)
+  .delete(titleController.deleteTitle);
 
 module.exports = router;

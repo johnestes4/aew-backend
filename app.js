@@ -8,11 +8,13 @@ const Match = require('./models/match');
 
 const startupRouter = require('./routes/startupRoutes');
 const titleReignRouter = require('./routes/titleReignRoutes');
+const titleRouter = require('./routes/titleRoutes');
 const wrestlerRouter = require('./routes/wrestlerRoutes');
 const teamRouter = require('./routes/teamRoutes');
 const showRouter = require('./routes/showRoutes');
 const matchRouter = require('./routes/matchRoutes');
 const rankingRouter = require('./routes/rankingRoutes');
+const utilityRouter = require('./routes/utilityRoutes');
 
 const app = express();
 
@@ -56,8 +58,10 @@ app.use('/api/startup', startupRouter);
 app.use('/api/titleReigns', titleReignRouter);
 app.use('/api/wrestlers', wrestlerRouter);
 app.use('/api/shows', showRouter);
+app.use('/api/titles', titleRouter);
 app.use('/api/teams', teamRouter);
 app.use('/api/matches', matchRouter);
 app.use('/api/rankings', rankingRouter);
+app.use('/api/utility', utilityRouter);
 
 module.exports = app;

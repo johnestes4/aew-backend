@@ -1,9 +1,9 @@
-const TitleProxy = require('./../models/titleProxy');
+const MatchTitleProxy = require('./../models/matchTitleProxy');
 const APIFeatures = require('./../utils/apiFeatures');
 
-exports.getAllTitleProxies = async (req, res) => {
+exports.getAllMatchTitleProxies = async (req, res) => {
   try {
-    const features = new APIFeatures(TitleProxy.find(), req.query)
+    const features = new APIFeatures(MatchTitleProxy.find(), req.query)
       .filter()
       .sort()
       .limitFields()
@@ -26,13 +26,13 @@ exports.getAllTitleProxies = async (req, res) => {
   }
 };
 
-exports.getTitleProxy = async (req, res) => {
+exports.getMatchTitleProxy = async (req, res) => {
   try {
-    const titleProxy = await TitleProxy.findById(req.params.id);
+    const matchTitleProxy = await MatchTitleProxy.findById(req.params.id);
 
     res.status(200).json({
       status: 'success',
-      data: { titleProxy },
+      data: { matchTitleProxy },
     });
   } catch (err) {
     res.status(404).json({
@@ -42,15 +42,15 @@ exports.getTitleProxy = async (req, res) => {
   }
 };
 
-exports.createTitleProxy = async (req, res) => {
+exports.createMatchTitleProxy = async (req, res) => {
   try {
-    const newTitleProxy = await TitleProxy.create(req.body);
+    const newMatchTitleProxy = await MatchTitleProxy.create(req.body);
 
     res.status(201).json({
       //status 201 means Created
       status: 'success',
       data: {
-        titleProxy: newTitleProxy,
+        matchTitleProxy: newMatchTitleProxy,
       },
     });
   } catch (err) {
@@ -61,9 +61,9 @@ exports.createTitleProxy = async (req, res) => {
   }
 };
 
-exports.updateTitleProxy = async (req, res) => {
+exports.updateMatchTitleProxy = async (req, res) => {
   try {
-    const titleProxy = await TitleProxy.findByIdAndUpdate(
+    const matchTitleProxy = await MatchTitleProxy.findByIdAndUpdate(
       req.params.id,
       req.body,
       {
@@ -76,7 +76,7 @@ exports.updateTitleProxy = async (req, res) => {
     );
     res.status(200).json({
       status: 'success',
-      data: { titleProxy },
+      data: { matchTitleProxy },
     });
   } catch (err) {
     res.status(404).json({
@@ -86,9 +86,9 @@ exports.updateTitleProxy = async (req, res) => {
   }
 };
 
-exports.deleteTitleProxy = async (req, res) => {
+exports.deleteMatchTitleProxy = async (req, res) => {
   try {
-    await TitleProxy.findByIdAndDelete(req.params.id);
+    await MatchTitleProxy.findByIdAndDelete(req.params.id);
     res.status(204).json({
       status: 'success',
       data: null,

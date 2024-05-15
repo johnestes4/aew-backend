@@ -8,11 +8,24 @@ const Match = require('../models/match');
 
 const router = express.Router();
 
+router.route('/rankings').get(teamController.getTeamRankings);
+router
+  .route('/rankings/male')
+  .get(teamController.male, teamController.tag, teamController.getTeamRankings);
+router
+  .route('/rankings/female')
+  .get(
+    teamController.female,
+    teamController.tag,
+    teamController.getTeamRankings
+  );
+
+router.route('/comboid').post(teamController.getTeamByComboID);
+
 router
   .route('/')
   .get(teamController.getAllTeams)
   .post(teamController.createTeam);
-router.route('/calc').get(teamController.scanTeams);
 router
   .route('/:id')
   .get(teamController.getTeam)

@@ -1,12 +1,30 @@
 const Wrestler = require('./../models/wrestler');
 const Match = require('./../models/match');
 const TitleReign = require('./../models/titleReign');
+const Title = require('./../models/title');
 
 const APIFeatures = require('./../utils/apiFeatures');
 
+exports.male = (req, res, next) => {
+  //this alias middleware sends out a preset query, and is attached to a specific API call
+  req.query.male = { $eq: 'true' };
+  next();
+};
+exports.female = (req, res, next) => {
+  //this alias middleware sends out a preset query, and is attached to a specific API call
+  req.query.male = { $eq: 'false' };
+  next();
+};
+
 exports.getAllWrestlers = async (req, res) => {
   try {
-    const features = new APIFeatures(Wrestler.find(), req.query)
+    const features = new APIFeatures(
+      Wrestler.find().populate({
+        path: 'titles',
+        model: TitleReign,
+      }),
+      req.query
+    )
       .filter()
       .sort('name')
       .limitFields();
@@ -29,7 +47,10 @@ exports.getAllWrestlers = async (req, res) => {
 };
 exports.getWrestlerRankings = async (req, res) => {
   try {
-    const features = new APIFeatures(Wrestler.find(), req.query)
+    const features = new APIFeatures(
+      Wrestler.find({ active: 'true' }),
+      req.query
+    )
       .filter()
       .sort('-power')
       .limitFields('name,power,male');
@@ -53,7 +74,14 @@ exports.getWrestlerRankings = async (req, res) => {
 
 exports.getWrestler = async (req, res) => {
   try {
-    const wrestler = await Wrestler.findById(req.params.id);
+    const wrestler = await Wrestler.findById(req.params.id).populate({
+      path: 'titles',
+      model: TitleReign,
+      populate: {
+        path: 'title',
+        model: Title,
+      },
+    });
 
     res.status(200).json({
       status: 'success',
@@ -115,112 +143,6 @@ exports.deleteWrestler = async (req, res) => {
       data: null,
     });
   } catch (err) {
-    res.status(404).json({
-      status: 'fail',
-      message: err,
-    });
-  }
-};
-
-exports.cleanAliases = async (req, res) => {
-  try {
-    const featuresW = new APIFeatures(Wrestler.find(), req.query).limitFields(
-      'name,aliases'
-    );
-    const wrestlers = await featuresW.query;
-
-    const featuresM = new APIFeatures(Match.find(), req.query).limitFields(
-      'winner,loser'
-    );
-    const matches = await featuresM.query;
-
-    const featuresT = new APIFeatures(TitleReign.find(), req.query).limitFields(
-      'champion'
-    );
-    const reigns = await featuresT.query;
-
-    var wresMap = new Map();
-    console.log('here');
-    for (let wres of wrestlers) {
-      if (wres.aliases.length < 1) {
-        continue;
-      }
-      for (let a of wres.aliases) {
-        // console.log(a);
-        var badWres = await Wrestler.findOne({ name: a });
-        // throw Error('STOPPING HERE');
-        if (badWres) {
-          // console.log(badWres.name);
-          // if (badWres.length > 1) {
-          // }
-          // console.log(badWres.name);
-          // console.log(`${badWres.name} >> ${badWres._id}`);
-          wresMap.set(badWres._id.toString(), {
-            name: a,
-            goodId: wres._id,
-          });
-        }
-      }
-    }
-    //go thru matches, replace bad ids with good ones
-    for (let match of matches) {
-      var needsUpdate = false;
-      for (let i = 0; i < match.winner.length; i++) {
-        const w = match.winner[i];
-        if (wresMap.has(w.toString())) {
-          needsUpdate = true;
-          // console.log(`<<OLD | ${w} | OLD>>`);
-          match.winner[i] = wresMap.get(w.toString()).goodId;
-          // console.log('<<NEW | ' + w + ' | NEW>>');
-        }
-      }
-      for (let l1 of match.loser) {
-        for (let i = 0; i < l1.length; i++) {
-          const l2 = l1[i];
-          var l2index = 0;
-          if (l2 !== null) {
-            if (wresMap.has(l2.toString())) {
-              needsUpdate = true;
-              // console.log(`${l2} > ${wresMap.get(l2.toString()).goodId}`);
-              l1[i] = wresMap.get(l2.toString()).goodId;
-            }
-          } else {
-            needsUpdate = true;
-            l1.splice(l2index, 1);
-          }
-          l2index++;
-        }
-      }
-      if (needsUpdate) {
-        await Match.findByIdAndUpdate(match._id, match);
-      }
-    }
-    //same for reigns
-    for (let reign of reigns) {
-      var needsUpdate = false;
-      for (let i = 0; i < reign.champion.length; i++) {
-        c = reign.champion[i];
-        if (wresMap.has(c.toString())) {
-          needsUpdate = true;
-          reign.champion[i] = wresMap.get(c.toString()).goodId;
-        }
-      }
-      if (needsUpdate) {
-        await TitleReign.findByIdAndUpdate(reign._id, reign);
-      }
-    }
-    //NOW we go delete all the, hopefully now fully obsolete, alias wrestlers.
-    for (let [key, value] of wresMap) {
-      // console.log(key);
-      await Wrestler.findByIdAndDelete(key);
-    }
-
-    res.status(201).json({
-      status: 'success',
-      data: 'Check the DB to see how successful it was!',
-    });
-  } catch (err) {
-    console.log(err);
     res.status(404).json({
       status: 'fail',
       message: err,

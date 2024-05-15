@@ -106,30 +106,3 @@ exports.deleteMatch = async (req, res) => {
     });
   }
 };
-
-exports.attachMatches = async (req, res) => {
-  try {
-    const features = new APIFeatures(Match.find(), req.query)
-      .filter()
-      .sort()
-      .limitFields();
-    // await executes the query and returns all the documents
-    const matches = await features.query;
-
-    for (let match of matches) {
-      const show = await Show.findById(match.show);
-      show.matches.push(match._id);
-      await Show.findByIdAndUpdate(show._id, show);
-    }
-
-    res.status(200).json({
-      status: 'success',
-      message: 'check DB for results',
-    });
-  } catch (err) {
-    res.status(404).json({
-      status: 'fail',
-      message: err,
-    });
-  }
-};

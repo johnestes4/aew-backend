@@ -1,9 +1,25 @@
+const TitleReign = require('../models/titleReign');
 const Title = require('./../models/title');
+const Show = require('./../models/show');
+const Wrestler = require('./../models/wrestler');
+const Team = require('./../models/team');
+
 const APIFeatures = require('./../utils/apiFeatures');
 
 exports.getAllTitles = async (req, res) => {
   try {
-    const features = new APIFeatures(Title.find(), req.query)
+    const features = new APIFeatures(
+      Title.find()
+        .populate({
+          path: 'currentChampion',
+          model: Wrestler,
+        })
+        .populate({
+          path: 'currentChampionTeam',
+          model: Team,
+        }),
+      req.query
+    )
       .filter()
       .sort()
       .limitFields()

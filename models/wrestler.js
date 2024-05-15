@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 const Team = require('./team');
+const Match = require('./match');
 const TitleReign = require('./titleReign');
 
 const wrestlerSchema = new Schema(
@@ -24,9 +25,12 @@ const wrestlerSchema = new Schema(
     startPower: Number,
     boosts: [
       {
+        //gotta make match/wrestler proxies for here, this can't just have a reference straight to matches - matches also reference wrestlers and it creates a loop
+
         startPower: Number,
         win: Number,
-        ppv: Boolean,
+        showMod: Number,
+        titleMod: Number,
         date: Date,
       },
     ],
@@ -46,8 +50,12 @@ const wrestlerSchema = new Schema(
       },
     ],
     bio: String,
-    active: Boolean,
+    active: {
+      type: Boolean,
+      default: true,
+    },
     alumni: Boolean,
+    profileImage: String,
   },
   { usePushEach: true }
 );

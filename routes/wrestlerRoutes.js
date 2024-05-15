@@ -8,12 +8,17 @@ const Match = require('../models/match');
 
 const router = express.Router();
 
+router.route('/rankings').get(wrestlerController.getWrestlerRankings);
+router
+  .route('/rankings/male')
+  .get(wrestlerController.male, wrestlerController.getWrestlerRankings);
+router
+  .route('/rankings/female')
+  .get(wrestlerController.female, wrestlerController.getWrestlerRankings);
 router
   .route('/')
   .get(wrestlerController.getAllWrestlers)
   .post(wrestlerController.createWrestler);
-router.route('/rankings').get(wrestlerController.getWrestlerRankings);
-router.route('/cleanaliases').get(wrestlerController.cleanAliases);
 router
   .route('/:id')
   .get(wrestlerController.getWrestler)

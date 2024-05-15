@@ -6,7 +6,7 @@ const fs = require('fs');
 const Match = require('./../models/match');
 const Show = require('./../models/show');
 const Title = require('./../models/title');
-const TitleProxy = require('./../models/titleProxy');
+const MatchTitleProxy = require('../models/matchTitleProxy');
 const TitleReign = require('./../models/titleReign');
 const Wrestler = require('./../models/wrestler');
 const APIFeatures = require('./../utils/apiFeatures');
@@ -14,8 +14,9 @@ const APIFeatures = require('./../utils/apiFeatures');
 exports.importData = async (req, res) => {
   try {
     const sourceData = JSON.parse(
-      fs.readFileSync(`./source/allShows.json`, 'utf-8')
+      fs.readFileSync(`./source/allShows2.json`, 'utf-8')
     );
+    // const wrestlerMaster = await Wrestler.find();
 
     const limit = sourceData.length;
     // const limit = 50;
@@ -292,7 +293,7 @@ exports.importData = async (req, res) => {
           }
           //NOW we do the titleproxy
           if (beltProxy) {
-            beltProxy = await TitleProxy.create(beltProxy);
+            beltProxy = await MatchTitleProxy.create(beltProxy);
           }
         }
       }
@@ -301,6 +302,82 @@ exports.importData = async (req, res) => {
       //status 201 means Created
       status: 'success',
       message: 'Check the DB to see how successful it was!',
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(404).json({
+      status: 'fail',
+      message: err,
+    });
+  }
+};
+
+exports.attachMatches = async (req, res) => {
+  try {
+    const features = new APIFeatures(Match.find(), req.query)
+      .filter()
+      .sort()
+      .limitFields();
+    // await executes the query and returns all the documents
+    const matches = await features.query;
+
+    for (let match of matches) {
+      const show = await Show.findById(match.show);
+      show.matches.push(match._id);
+      await Show.findByIdAndUpdate(show._id, show);
+    }
+
+    res.status(200).json({
+      status: 'success',
+      message: 'check DB for results',
+    });
+  } catch (err) {
+    res.status(404).json({
+      status: 'fail',
+      message: err,
+    });
+  }
+};
+
+//We've got an issue with losers in tag matches. they didn't process properly, and they're split into separate arrays when they should be one
+//here we're going to iterate thru all matches, find everything with winner.length > 1
+//if winner.length > loser.length, it's an imbalance, and we reshuffle arrays until it matches
+exports.cleanTagMatches = async (req, res) => {
+  try {
+    const allMatches = await Match.find();
+    var numFixed = 0;
+
+    for (let match of allMatches) {
+      //if the winner length is 1, it's not the dynamite dozen, and it's not a handicap match
+      if (
+        (match.winner.length < 2 || match.matchType.includes('Dozen')) &&
+        !match.matchType.includes('Handicap')
+      ) {
+        continue;
+      }
+      //i don't think there's any instances of this happening with the array lengths being longer than 1. it's all cases where wrestlers each got an individual array
+      if (match.loser[0].length == 1) {
+        var newLoserArray = [];
+        for (let l of match.loser) {
+          newLoserArray.push(l[0]);
+        }
+        //just one more layer here to make sure they should be combined. pretty sure it will work tho
+        //DO have to make sure that if it's a handicap match and the bigger team loses, we combine them
+        if (
+          newLoserArray.length == match.winner.length ||
+          (match.matchType.includes('Handicap') &&
+            newLoserArray.length > match.winner.length)
+        ) {
+          match.loser = [newLoserArray];
+          await Match.findByIdAndUpdate(match._id, match);
+          numFixed++;
+        }
+      }
+    }
+
+    res.status(200).json({
+      status: 'success',
+      message: `fixed ${numFixed} matches`,
     });
   } catch (err) {
     console.log(err);

@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 
+//this goes on WRESTLER and TITLE
+
 const titleReignSchema = new mongoose.Schema(
   {
     title: {
@@ -20,6 +22,9 @@ const titleReignSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'show',
     },
+
+    //is this how we want to do it????????????
+    //i think so, we want to reference that info. just weird.
     defenses: [
       {
         type: mongoose.Schema.Types.ObjectId,

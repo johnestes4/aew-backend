@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const Wrestler = require('./wrestler');
 const Show = require('./show');
-const TitleProxy = require('./titleProxy');
+const MatchTitleProxy = require('./matchTitleProxy');
 
 const matchSchema = new mongoose.Schema(
   {
@@ -28,7 +28,7 @@ const matchSchema = new mongoose.Schema(
     title: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'titleProxy',
+        ref: 'matchTitleProxy',
       },
     ], //replace with titleProxy
     mainEvent: Boolean, //good for power calc, main events weighted slightly higher
