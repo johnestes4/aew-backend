@@ -64,6 +64,12 @@ const wrestlerSchema = new Schema(
     },
     alumni: Boolean,
     profileImage: String,
+    record: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'wrestlermatchproxy',
+      },
+    ],
   },
   { usePushEach: true }
 );

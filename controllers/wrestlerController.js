@@ -149,3 +149,106 @@ exports.deleteWrestler = async (req, res) => {
     });
   }
 };
+
+exports.generateRecord = async (req, res) => {
+  function pushWres(nameArr, wresArr, w, won) {
+    nameArr.push(w.name);
+    wresArr.push({
+      name: w.name,
+      id: w._id,
+      won: won,
+    });
+  }
+  try {
+    const allMatches = await Match.find({
+      $or: [
+        { winner: { $in: req.params.id } },
+        { loser: { $in: req.params.id } },
+      ],
+    })
+      .populate({
+        path: 'winner loser',
+        model: Wrestler,
+      })
+      .populate({
+        path: 'show',
+        model: Show,
+      })
+      .populate({
+        path: 'show',
+        model: Show,
+      })
+      .populate({
+        path: 'title',
+        model: MatchTitleProxy,
+      });
+    var count = 0;
+    const allRecord = [];
+
+    var count = 1;
+    for (let match of allMatches) {
+      console.log(`${count}...`);
+      if (match.winner.length >= 2 && match.winner.length <= 3) {
+        winnerCombo = JSON.stringify(match.winner.sort());
+      }
+      var winnerNames = [];
+      var loserNames = [];
+      const newResult = {
+        match: match._id,
+        show: match.show._id,
+        date: match.show.date,
+        titles: [],
+        matchType: match.matchType,
+        mainEvent: match.mainEvent,
+      };
+      const winArr = [];
+      const loseArr = [];
+      for (let w of match.winner) {
+        if (!w.record) {
+          w.record = [];
+        }
+        pushWres(winnerNames, winArr, w, true);
+        if (match.winner > 1 && match.winner < 4) {
+          var comboID = JSON.stringify(match.winner.sort());
+          var team = Team.findOne({ comboID: comboID });
+          if (team) {
+            newResult.teams.push({
+              name: team.name,
+              id: team._id,
+              won: true,
+            });
+          }
+        }
+      }
+      for (let w2 of match.loser) {
+        var losingSideNames = [];
+        for (let w of w2) {
+          pushWres(losingSideNames, newResult.wrestlers, w, false);
+        }
+        loserNames.push(losingSideNames);
+      }
+      newResult.winnerString = makeNameString(winnerNames);
+      newResult.loserString = makeNameString(loserNames);
+      for (let t of match.title) {
+        var title = await Title.findById(t.title);
+        newResult.titles.push({
+          name: title.name,
+          id: title._id,
+        });
+      }
+      allRecord.push(newResult);
+      count++;
+    }
+
+    res.status(200).json({
+      status: 'success',
+      data: { allRecord },
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(404).json({
+      status: 'fail',
+      message: err,
+    });
+  }
+};

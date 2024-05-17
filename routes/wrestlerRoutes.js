@@ -15,6 +15,7 @@ router
 router
   .route('/rankings/female')
   .get(wrestlerController.female, wrestlerController.getWrestlerRankings);
+router.route('/record/:id').get(wrestlerController.generateRecord);
 router
   .route('/')
   .get(wrestlerController.getAllWrestlers)

@@ -86,7 +86,7 @@ function calcWrestlerPower(wrestler, currentDate) {
       // teamModifier = 0.9;
       timeGap = 7;
     } else {
-      modifier = 2.25;
+      modifier = 1.5;
       ppvModifier = 1.5;
       winModifier = 1.25;
       // teamModifier = 0.75;
@@ -231,6 +231,12 @@ function calcStreak(wres, power) {
     titleStreak = secondaryStreak;
   }
 
+  //LSM is StartingPower / Current Power. this should make it so the closer you are to baseline, the stronger a losing streak debuff is
+  // var losingStreakModifier = (wres.startPower * 0.8) / power;
+  // if (lastResult == 0) {
+  //   streakMod = streakMod * losingStreakModifier;
+  // }
+
   //if it gets here without any sort of streak, just gotta ensure it doesn't have a negative number and that lastresult isn't null
   var streakMod = 0;
   if (lastResult !== null) {
@@ -285,7 +291,7 @@ exports.calcRankings = async (req, res) => {
         //startingPower/ 5, on a flat 5000v5000 matchup, would put 10% of each side on the line
         // reducing the kfactor divisor increases the point movement
         // a higher kfactor divisor means less power on the line
-        const kFactor = startingPower / 8;
+        const kFactor = startingPower / 7;
         //x-factor affects the change brought on by the difference between winner and loser
         // a higher number seems to lead to bigger changes, but not by a ton
 
@@ -310,8 +316,8 @@ exports.calcRankings = async (req, res) => {
           it needs to average every SIDE in a match, then be able to average all the SIDES except the one it's currently calculating
           in team situations, it can apply the same expchange to both teammates - calced based on their average together
         */
-        var winnerAvg;
-        var loserAvg;
+        var winnerNames;
+        var loserNames;
 
         var winnerSide = {
           teamKey: null,
