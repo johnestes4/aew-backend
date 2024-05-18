@@ -14,8 +14,10 @@ function calcShowMod(show, match, win) {
   ) {
     // startingPower = 100;
     showMod = 0.5;
-  } else if (match.matchType.toLowerCase().includes('dark')) {
+  } else if (win && match.matchType.toLowerCase().includes('dark')) {
     showMod = 0.25;
+  } else if (!win && match.matchType.toLowerCase().includes('dark')) {
+    showMod = 2.5;
   } else if (show.ppv) {
     if (win && match.mainEvent) {
       showMod = 1.5;
@@ -41,7 +43,8 @@ function calcWrestlerPower(wrestler, currentDate) {
   var team = wrestler.wrestlers !== undefined;
   var currentPower = 0 + wrestler.startPower;
   //this now returns an OBJECT so that it can also return the gap of time since the last match. this will be used to inactive people after 12 weeks (84 days)
-  var timeGap = 0;
+  var timeGap = 999;
+  var singlesGap = 999;
   for (let boost of wrestler.boosts) {
     var modifier = 1;
     var ppvModifier = 1;
@@ -51,40 +54,41 @@ function calcWrestlerPower(wrestler, currentDate) {
     var daysSince = Math.round(
       (currentDate.getTime() - boost.date.getTime()) / (1000 * 60 * 60 * 24)
     );
+    if (!team && boost.sideSize == 1) {
+      if (daysSince < singlesGap) {
+        singlesGap = 0 + daysSince;
+      }
+    }
+    if (boost.showMod !== 0.25 && boost.showMod !== 2.5) {
+      timeGap = 0 + daysSince;
+    }
+
     if (daysSince >= 365) {
       modifier = 0.01;
       ppvModifier = 1.15;
-      timeGap = 365;
     } else if (daysSince >= 140) {
       modifier = 0.01;
       ppvModifier = 1.15;
-      timeGap = 140;
     } else if (daysSince >= 112) {
       modifier = 0.025;
       ppvModifier = 1.15;
-      timeGap = 112;
     } else if (daysSince >= 84) {
       modifier = 0.075;
       ppvModifier = 1.1;
-      timeGap = 84;
     } else if (daysSince >= 56) {
       modifier = 0.15;
       ppvModifier = 1.1;
-      timeGap = 56;
     } else if (daysSince >= 28) {
       modifier = 0.25;
       ppvModifier = 1.15;
-      timeGap = 28;
     } else if (daysSince >= 14) {
       modifier = 0.5;
       ppvModifier = 1.15;
-      timeGap = 14;
     } else if (daysSince >= 7) {
       modifier = 1;
       ppvModifier = 1.25;
       winModifier = 1.25;
       // teamModifier = 0.9;
-      timeGap = 7;
     } else {
       modifier = 1.5;
       ppvModifier = 1.5;
@@ -124,12 +128,13 @@ function calcWrestlerPower(wrestler, currentDate) {
   calcReturn = {
     power: currentPower,
     timeGap: timeGap,
+    singlesGap: singlesGap,
   };
   return calcReturn;
 }
 
-function calcStreak(wres, power) {
-  var debugName = 'ftr';
+function calcStreak(wres, power, currentDate) {
+  var debugName = '';
   var streak = 0;
   var worldStreak = 0;
   var secondaryStreak = 0;
@@ -144,16 +149,18 @@ function calcStreak(wres, power) {
   if (wres.wrestlers) {
     wresSize = wres.wrestlers.length;
   }
+  var weeksSince = 999;
 
   var whichTitleBuffs = 0;
 
   //it should go backwards thru the last 15 matches to find the last 5 matches of the proper size and the last 5 title matches
   for (
     let i = wres.boosts.length - 1;
-    i > wres.boosts.length - 16 && i >= 0;
+    i > wres.boosts.length - 21 && i >= 0;
     i--
   ) {
     var boost = wres.boosts[i];
+
     if (
       debugName &&
       i == wres.boosts.length - 1 &&
@@ -166,6 +173,18 @@ function calcStreak(wres, power) {
     }
 
     if (wresSize == boost.sideSize) {
+      if (boost.showMod == 0.25 || boost.showMod == 2.5) {
+        continue;
+      }
+      var newGap = Math.round(
+        ((currentDate.getTime() - boost.date.getTime()) /
+          (1000 * 60 * 60 * 24)) %
+          7
+      );
+      if (newGap < weeksSince) {
+        weeksSince = newGap;
+      }
+
       matchingCount++;
 
       if (lastResult !== null && boost.win !== lastResult) {
@@ -224,6 +243,11 @@ function calcStreak(wres, power) {
     [0, 0.05, 0.07, 0.1, 0.14, 0.2],
     [0, 0.15, 0.16, 0.18, 0.2, 0.25],
   ];
+  var buffWeeksDecay = [1, 1, 0.95, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3];
+  if (weeksSince > buffWeeksDecay.length - 1) {
+    weeksSince = buffWeeksDecay.length - 1;
+  }
+
   var titleStreak = 0;
   if (worldStreak > 0) {
     titleStreak = worldStreak;
@@ -245,6 +269,9 @@ function calcStreak(wres, power) {
   var titleMod = titleBuffs[whichTitleBuffs][titleStreak];
   if (lastTitleResult == 0) {
     titleMod = titleMod * -1;
+  }
+  if ((lastResult = 1)) {
+    streakMod = streakMod * buffWeeksDecay[weeksSince];
   }
   power = power * (1 + streakMod) * (1 + titleMod);
 
@@ -649,14 +676,18 @@ exports.calcRankings = async (req, res) => {
       }
       wres.boosts = value.boosts;
       var calcPower = calcWrestlerPower(value, latestDate);
-      var power = calcStreak(value, calcPower.power.toFixed(0)).toFixed(0);
+      var power = calcStreak(
+        value,
+        calcPower.power.toFixed(0),
+        latestDate
+      ).toFixed(0);
       // if the most recent match is a loss, it needs a BIG ACROSS THE BOARD NERF.
       wres.power = power;
 
       wres.startPower = value.startPower;
-      if (calcPower.timeGap >= 84) {
+      if (calcPower.singlesGap >= 84) {
         wres.active = false;
-      } else if (calcPower.timeGap <= 7) {
+      } else if (calcPower.singlesGap <= 7) {
         wres.active = true;
       }
       if (value.name == 'Orange Cassidy') {
@@ -677,7 +708,11 @@ exports.calcRankings = async (req, res) => {
       }
       team.boosts = value.boosts;
       var calcPower = calcWrestlerPower(value, latestDate);
-      var power = calcStreak(value, calcPower.power.toFixed(0)).toFixed(0);
+      var power = calcStreak(
+        value,
+        calcPower.power.toFixed(0),
+        latestDate
+      ).toFixed(0);
       team.power = power;
       team.startPower = value.startPower;
       team.male = value.male;
