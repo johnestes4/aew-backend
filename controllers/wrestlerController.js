@@ -156,19 +156,61 @@ exports.deleteWrestler = async (req, res) => {
 makeNameString = async (names, winner) => {
   function testTeam(found, members, teamMap) {
     for (let w of members) {
+      w = w.toString();
       if (teamMap.has(w)) {
+        // if (
+        //   teamMap.get(w).name == 'Chris Jericho & Jake Hager' ||
+        //   found.name == 'Chris Jericho & Jake Hager'
+        // ) {
+        //   console.log(
+        //     `${teamMap.get(w).name}: ${teamMap.get(w).boosts.length} || ${found.name}: ${found.boosts.length}`
+        //   );
+        // }
         if (
-          teamMap.get(w).boosts.length > found.boosts.length &&
-          teamMap.get(w).wrestlers.length >= found.wrestlers.length
+          // EXISTING TEAM IS BETTER
+          (teamMap.get(w).boosts.length >= found.boosts.length &&
+            teamMap.get(w).wrestlers.length >= found.wrestlers.length) ||
+          teamMap.get(w).wrestlers.length > found.wrestlers.length
         ) {
-          break;
-        } else {
-          for (let teamId of teamMap.get(w).wrestlers) {
-            teamMap.delete(teamId);
+          if ((found.name = 'Le Sex Gods')) {
           }
+          for (let w2 of members) {
+            w2 = w2.toString();
+            if (
+              teamMap.has(w2) &&
+              teamMap.get(w2).name !== teamMap.get(w).name
+            ) {
+              teamMap.delete(w2);
+            }
+          }
+          break;
+        } else if (
+          // NEW TEAM IS BETTER
+          found.wrestlers.length >= teamMap.get(w).wrestlers.length ||
+          found.boosts.length > teamMap.get(w).boosts.length
+        ) {
+          for (let id of teamMap.get(w).wrestlers) {
+            id = id.toString();
+            if (teamMap.has(id)) {
+              teamMap.delete(id);
+            }
+          }
+          for (let id of members) {
+            id = id.toString();
+            if (teamMap.has(id)) {
+            }
+          }
+          teamMap.set(w, found);
+        } else {
         }
+      } else {
+        teamMap.set(w, found);
       }
-      teamMap.set(w, found);
+    }
+    for (let [key, value] of teamMap) {
+      if (value.name == 'Chris Jericho & Jake Hager') {
+        // console.log(key);
+      }
     }
     return teamMap;
   }
@@ -227,21 +269,8 @@ makeNameString = async (names, winner) => {
         singles.push();
       }
       for (let n of names) {
-        if (!teamMap.has(n.id)) {
+        if (!teamMap.has(n.id.toString())) {
           singleNames.push(n.name);
-        }
-      }
-      // singleNames = singleNames.sort();
-      for (let i = 0; i < singleNames.length; i++) {
-        if (i == singleNames.length - 1 && teamMap.size == 0) {
-          if (nameOut.slice(-1) !== ' ') {
-            nameOut = nameOut + ' ';
-          }
-          nameOut = nameOut + '& ';
-        }
-        nameOut = nameOut + singleNames[i];
-        if (singleNames.length > 2 && i < singleNames.length - 1) {
-          nameOut = nameOut + ', ';
         }
       }
       if (teamMap.size > 0) {
@@ -253,21 +282,42 @@ makeNameString = async (names, winner) => {
           }
         }
         if (nameOut.length > 0) {
-          if (teamNames.length == 1) {
-            nameOut = nameOut + ' & ';
-          } else if (teamNames.length > 1) {
-            nameOut = nameOut + ', ';
-          }
         }
         teamNames = teamNames.sort();
-        for (let i = 0; i < teamNames.length; i++) {
-          nameOut = nameOut + teamNames[i];
-          if (teamNames.length > 2 && i < teamNames.length - 2) {
-            nameOut = nameOut + ', ';
-          } else if (teamNames.length > 2 && i < teamNames.length - 1) {
-            nameOut = nameOut + ', & ';
-          } else if (i < teamNames.length - 1) {
-            nameOut = nameOut + ' & ';
+      }
+      // singleNames = singleNames.sort();
+      for (let i = 0; i < singleNames.length; i++) {
+        if (nameOut.length > 0) {
+          nameOut = nameOut + ' ';
+        }
+        nameOut = nameOut + singleNames[i];
+        if (singleNames.length + teamNames.length > 2) {
+          nameOut = nameOut + ',';
+        }
+        if (
+          (i + 1 == singleNames.length - 1 && teamNames.length == 0) ||
+          (i == singleNames.length - 1 && teamNames.length == 1)
+        ) {
+          if (teamNames.length == 1 && teamNames[0].includes('&')) {
+            nameOut = nameOut + ',';
+          } else {
+            nameOut = nameOut + ' &';
+          }
+        }
+      }
+      for (let i = 0; i < teamNames.length; i++) {
+        if (nameOut.length > 0) {
+          nameOut = nameOut + ' ';
+        }
+        nameOut = nameOut + teamNames[i];
+        if (teamNames.length > 2) {
+          nameOut = nameOut + ',';
+        }
+        if (i + 1 == teamNames.length - 1) {
+          if (teamNames[i + 1].includes('&')) {
+            nameOut = nameOut + ',';
+          } else {
+            nameOut = nameOut + ' &';
           }
         }
       }
@@ -275,7 +325,7 @@ makeNameString = async (names, winner) => {
     return nameOut;
   } catch (err) {
     console.log(err);
-    return 'FUCK';
+    return 'OOPS';
   }
 };
 
@@ -303,7 +353,14 @@ exports.generateRecord = async (req, res) => {
     var allRecord = [];
 
     var count = 1;
+
     for (let match of allMatches) {
+      // if (count > 19) {
+      //   break;
+      // } else if (count < 19) {
+      //   count++;
+      //   continue;
+      // }
       console.log(`${count}...`);
       if (match.winner.length >= 2 && match.winner.length <= 3) {
         winnerCombo = JSON.stringify(match.winner.sort());
