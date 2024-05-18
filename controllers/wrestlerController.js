@@ -1,7 +1,10 @@
 const Wrestler = require('./../models/wrestler');
 const Match = require('./../models/match');
+const Show = require('./../models/show');
+const MatchTitleProxy = require('./../models/matchTitleProxy');
 const TitleReign = require('./../models/titleReign');
 const Title = require('./../models/title');
+const Team = require('./../models/team');
 
 const APIFeatures = require('./../utils/apiFeatures');
 
@@ -150,15 +153,133 @@ exports.deleteWrestler = async (req, res) => {
   }
 };
 
-exports.generateRecord = async (req, res) => {
-  function pushWres(nameArr, wresArr, w, won) {
-    nameArr.push(w.name);
-    wresArr.push({
-      name: w.name,
-      id: w._id,
-      won: won,
-    });
+makeNameString = async (names, winner) => {
+  function testTeam(found, members, teamMap) {
+    for (let w of members) {
+      if (teamMap.has(w)) {
+        if (
+          teamMap.get(w).boosts.length > found.boosts.length &&
+          teamMap.get(w).wrestlers.length >= found.wrestlers.length
+        ) {
+          break;
+        } else {
+          for (let teamId of teamMap.get(w).wrestlers) {
+            teamMap.delete(teamId);
+          }
+        }
+      }
+      teamMap.set(w, found);
+    }
+    return teamMap;
   }
+  try {
+    var nameOut = '';
+    //winners are added before the losers, so i think once you hit a loser you're all past the winners, right?
+    //so theoretically you should just break the loop once
+    if (Array.isArray(names[0])) {
+      var sideString = '';
+      for (let i = 0; i < names.length; i++) {
+        nameOut += await makeNameString(names[i], winner);
+        if (names.length > 1) {
+          if (i < names.length - 1) {
+            nameOut += ', ';
+          }
+        }
+      }
+    } else {
+      var teamMap = new Map();
+      var singles = [];
+      var singleNames = [];
+      var teamNames = [];
+      for (let i = 0; i < names.length; i++) {
+        if (names[i].won !== winner) {
+          continue;
+        }
+        if (i < names.length - 1) {
+          //make a comboID for each subsequent guy, use it to find a tag team
+          //if it finds two separate tag teams, first check if there's a ( in it
+          //if so, it's probably a faction: cut off everything before the ( and use that
+          //if not, check the team's boost count versus the boost count of the existing one
+          //keep the one with more matches
+          for (let i2 = i + 1; i2 < names.length; i2++) {
+            if (names[i2].won !== winner) {
+              break;
+            }
+            if (i2 < names.length - 1) {
+              for (let i3 = i2 + 1; i3 < names.length; i3++) {
+                var members = [names[i].id, names[i2].id, names[i3].id].sort();
+                var comboID = JSON.stringify(members);
+                var found = await Team.findOne({ comboID: comboID });
+                if (found) {
+                  teamMap = testTeam(found, members, teamMap);
+                }
+              }
+            }
+            var members = [names[i].id, names[i2].id].sort();
+            var comboID = JSON.stringify(members);
+            // console.log(comboID);
+            var found = await Team.findOne({ comboID: comboID });
+            if (found) {
+              teamMap = testTeam(found, members, teamMap);
+            }
+          }
+        }
+        singles.push();
+      }
+      for (let n of names) {
+        if (!teamMap.has(n.id)) {
+          singleNames.push(n.name);
+        }
+      }
+      // singleNames = singleNames.sort();
+      for (let i = 0; i < singleNames.length; i++) {
+        if (i == singleNames.length - 1 && teamMap.size == 0) {
+          if (nameOut.slice(-1) !== ' ') {
+            nameOut = nameOut + ' ';
+          }
+          nameOut = nameOut + '& ';
+        }
+        nameOut = nameOut + singleNames[i];
+        if (singleNames.length > 2 && i < singleNames.length - 1) {
+          nameOut = nameOut + ', ';
+        }
+      }
+      if (teamMap.size > 0) {
+        var namesUsed = new Map();
+        for (let [key, value] of teamMap) {
+          if (!namesUsed.has(value.name)) {
+            teamNames.push(value.name);
+            namesUsed.set(value.name);
+          }
+        }
+        if (nameOut.length > 0) {
+          if (teamNames.length == 1) {
+            nameOut = nameOut + ' & ';
+          } else if (teamNames.length > 1) {
+            nameOut = nameOut + ', ';
+          }
+        }
+        teamNames = teamNames.sort();
+        for (let i = 0; i < teamNames.length; i++) {
+          nameOut = nameOut + teamNames[i];
+          if (teamNames.length > 2 && i < teamNames.length - 2) {
+            nameOut = nameOut + ', ';
+          } else if (teamNames.length > 2 && i < teamNames.length - 1) {
+            nameOut = nameOut + ', & ';
+          } else if (i < teamNames.length - 1) {
+            nameOut = nameOut + ' & ';
+          }
+        }
+      }
+    }
+    return nameOut;
+  } catch (err) {
+    console.log(err);
+    return 'FUCK';
+  }
+};
+
+exports.generateRecord = async (req, res) => {
   try {
     const allMatches = await Match.find({
       $or: [
@@ -175,15 +296,11 @@ exports.generateRecord = async (req, res) => {
         model: Show,
       })
       .populate({
-        path: 'show',
-        model: Show,
-      })
-      .populate({
         path: 'title',
         model: MatchTitleProxy,
       });
     var count = 0;
-    const allRecord = [];
+    var allRecord = [];
 
     var count = 1;
     for (let match of allMatches) {
@@ -207,7 +324,12 @@ exports.generateRecord = async (req, res) => {
         if (!w.record) {
           w.record = [];
         }
-        pushWres(winnerNames, winArr, w, true);
+        winnerNames.push(w.name);
+        winArr.push({
+          name: w.name,
+          id: w._id,
+          won: true,
+        });
         if (match.winner > 1 && match.winner < 4) {
           var comboID = JSON.stringify(match.winner.sort());
           var team = Team.findOne({ comboID: comboID });
@@ -223,12 +345,18 @@ exports.generateRecord = async (req, res) => {
       for (let w2 of match.loser) {
         var losingSideNames = [];
         for (let w of w2) {
-          pushWres(losingSideNames, newResult.wrestlers, w, false);
+          losingSideNames.push(w.name);
+          loseArr.push({
+            name: w.name,
+            id: w._id,
+            won: false,
+          });
         }
         loserNames.push(losingSideNames);
       }
-      newResult.winnerString = makeNameString(winnerNames);
-      newResult.loserString = makeNameString(loserNames);
+      newResult.wrestlers = winArr.concat(loseArr);
+      newResult.winnerString = await makeNameString(winArr, true);
+      newResult.loserString = await makeNameString(loseArr, false);
       for (let t of match.title) {
         var title = await Title.findById(t.title);
         newResult.titles.push({
@@ -239,6 +367,7 @@ exports.generateRecord = async (req, res) => {
       allRecord.push(newResult);
       count++;
     }
+    allRecord = allRecord.reverse();
 
     res.status(200).json({
       status: 'success',

@@ -51,6 +51,7 @@ const wrestlerMatchProxySchema = new mongoose.Schema(
     ],
     matchType: String,
     resultType: String, // resulttype is pin/sub/dq, also draw/no contest
+    time: String,
     img: String,
     link: String,
   },
