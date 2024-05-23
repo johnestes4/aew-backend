@@ -14,9 +14,15 @@ function calcShowMod(show, match, win) {
   ) {
     // startingPower = 100;
     showMod = 0.5;
-  } else if (win && match.matchType.toLowerCase().includes('dark')) {
+  } else if (
+    win &&
+    (match.matchType.toLowerCase().includes('dark') || match.preshow)
+  ) {
     showMod = 0.25;
-  } else if (!win && match.matchType.toLowerCase().includes('dark')) {
+  } else if (
+    (!win && match.matchType.toLowerCase().includes('dark')) ||
+    match.preshow
+  ) {
     showMod = 2.5;
   } else if (show.ppv) {
     if (win && match.mainEvent) {
@@ -280,12 +286,7 @@ function calcStreak(wres, power, currentDate) {
 
 exports.calcRankings = async (req, res) => {
   try {
-    const features = new APIFeatures(Show.find(), req.query)
-      .filter()
-      .sort('date')
-      .limitFields();
-    // await executes the query and returns all the documents
-    const shows = await features.query;
+    const shows = await Show.find();
     var latestDate = null;
     var showCount = 0;
     var wresMap = new Map();

@@ -1,6 +1,7 @@
 const Show = require('./../models/show');
 const Match = require('./../models/match');
 const Wrestler = require('./../models/wrestler');
+const rankingsController = require('./rankingsController');
 const APIFeatures = require('./../utils/apiFeatures');
 
 exports.getAllShows = async (req, res) => {
@@ -9,10 +10,6 @@ exports.getAllShows = async (req, res) => {
       Show.find().populate({
         path: 'matches',
         model: Match,
-        populate: {
-          path: 'winner loser',
-          model: Wrestler,
-        },
       }),
       req.query
     )
@@ -109,6 +106,80 @@ exports.deleteShow = async (req, res) => {
     });
   } catch (err) {
     res.status(404).json({
+      status: 'fail',
+      message: err,
+    });
+  }
+};
+
+exports.newShow = async (req, res) => {
+  try {
+    var show = req.body;
+    const newMatches = [];
+    for (let i = 0; i < show.matches.length; i++) {
+      var match = show.matches[i];
+      var wresToCreate = [];
+      var wresMap = new Map();
+      var matchMale = true;
+      for (let wres of match.winner) {
+        var found = await Wrestler.findOne({ name: wres });
+        if (!found) {
+          wresToCreate.push(wres);
+        } else {
+          wresMap.set(found.name, found);
+          matchMale = found.male;
+        }
+      }
+      for (let arr of match.loser) {
+        for (let wres of arr) {
+          var found = await Wrestler.findOne({ name: wres });
+          if (!found) {
+            wresToCreate.push(wres);
+          } else {
+            wresMap.set(found.name, found);
+            matchMale = found.male;
+          }
+        }
+      }
+      for (let w of wresToCreate) {
+        var newWres = new Wrestler();
+        newWres.name = w;
+        newWres.male = matchMale;
+        newWres = await Wrestler.create(newWres);
+        wresMap.set(newWres.name, newWres);
+      }
+      for (let i2 = 0; i2 < match.winner.length; i2++) {
+        match.winner[i2] = wresMap.get(match.winner[i2])._id;
+      }
+      for (let arr of match.loser) {
+        for (let i2 = 0; i2 < arr.length; i2++) {
+          arr[i2] = wresMap.get(arr[i2])._id;
+        }
+      }
+      delete match._id;
+      delete match.show;
+      var newMatch = await Match.create(match);
+      newMatches.push(newMatch);
+      show.matches[i] = newMatch._id;
+    }
+    delete show._id;
+    show = await Show.create(show);
+    for (let match of newMatches) {
+      match.show = show._id;
+      await Match.findByIdAndUpdate(match._id, match);
+    }
+    console.log(show._id);
+    await rankingsController.calcRankings();
+    res.status(201).json({
+      //status 201 means Created
+      status: 'success',
+      data: {
+        show: show,
+      },
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(400).json({
       status: 'fail',
       message: err,
     });

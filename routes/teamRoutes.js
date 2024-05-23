@@ -20,6 +20,15 @@ router
     teamController.getTeamRankings
   );
 
+router
+  .route('/rankings/trio')
+  .get(
+    teamController.male,
+    teamController.trio,
+    teamController.getTeamRankings
+  );
+router;
+
 router.route('/comboid').post(teamController.getTeamByComboID);
 
 router

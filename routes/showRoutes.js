@@ -8,10 +8,12 @@ const Match = require('../models/match');
 
 const router = express.Router();
 
+router.route('/new').post(showController.newShow);
 router
   .route('/')
   .get(showController.getAllShows)
   .post(showController.createShow);
+router;
 router
   .route('/:id')
   .get(showController.getShow)
