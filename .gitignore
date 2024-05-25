@@ -130,3 +130,5 @@ dist
 .pnp.*
 
 .source/
+config.env
+config.env
