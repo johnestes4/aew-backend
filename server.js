@@ -18,6 +18,10 @@ mongoose
 
 /*======SERVER======*/
 const port = process.env.PORT;
+if (process.env.NODE_ENV == 'production') {
+  port = process.env.PROD_PORT;
+}
+
 app.listen(port, () => {
   console.log(`<PORT ${port} SERVER CONNECTION ESTABLISHED>`);
 });
