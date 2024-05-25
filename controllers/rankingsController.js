@@ -171,13 +171,13 @@ function calcWrestlerPower(wrestler, currentDate) {
 
     if (daysSince >= 365) {
       modifier = 0.01;
-      ppvModifier = 1.15;
+      ppvModifier = 1.1;
     } else if (daysSince >= 140) {
       modifier = 0.01;
-      ppvModifier = 1.15;
+      ppvModifier = 1.1;
     } else if (daysSince >= 112) {
       modifier = 0.025;
-      ppvModifier = 1.15;
+      ppvModifier = 1.1;
     } else if (daysSince >= 84) {
       modifier = 0.075;
       ppvModifier = 1.1;
@@ -193,7 +193,7 @@ function calcWrestlerPower(wrestler, currentDate) {
     } else if (daysSince >= 7) {
       modifier = 1;
       ppvModifier = 1.25;
-      winModifier = 1.25;
+      winModifier = 1.2;
       // teamModifier = 0.9;
     } else {
       modifier = 1.5;
@@ -278,7 +278,7 @@ function calcStreak(wres, power, currentDate) {
       );
     }
 
-    if (wresSize == boost.sideSize) {
+    if (wresSize == boost.sideSize || (wresSize == 2 && boost.sideSize == 3)) {
       if (boost.showMod == 0.25 || boost.showMod == 2.5) {
         continue;
       }
@@ -384,6 +384,51 @@ function calcStreak(wres, power, currentDate) {
   return power;
 }
 
+function findInnerTeams(ids, teamMap, idPower, masterKey, date) {
+  var inTeam = new Map();
+  var idPower = new Map();
+  for (let id1 of ids) {
+    for (let id2 of ids) {
+      if (id2 == id1) {
+        continue;
+      }
+      var newKey = JSON.stringify([id1, id2].sort());
+      if (newKey == masterKey) {
+        continue;
+      }
+      if (teamMap.has(newKey)) {
+        var team = teamMap.get(newKey);
+        // check if either id is already in the inTeam map. if it is, check if this new team's boost length is higher
+        // if it is, replace the id already there. if it's not, continue
+        // this should cause it to always use the teams with the most matches
+        if (!inTeam.has(id1) && !inTeam.has(id2)) {
+          inTeam.set(id1, team);
+          inTeam.set(id2, team);
+        } else if (inTeam.has(id1)) {
+          if (inTeam.get(id1).boosts.length > team.boosts.length) {
+            continue;
+          }
+        } else if (inTeam.has(id2)) {
+          if (inTeam.get(id2).boosts.length > team.boosts.length) {
+            continue;
+          }
+        }
+        inTeam.delete(id1);
+        inTeam.delete(id2);
+        team.power = calcWrestlerPower(team, date).power;
+        inTeam.set(id1, team);
+        inTeam.set(id2, team);
+        teamMap.set(newKey, team);
+      }
+    }
+  }
+  return {
+    inTeam: inTeam,
+    idPower: idPower,
+    teamMap: teamMap,
+  };
+}
+
 exports.calcRankings = async (req, res) => {
   try {
     const shows = await Show.find();
@@ -440,20 +485,15 @@ exports.calcRankings = async (req, res) => {
           }
         }
 
-        /*
-          it needs to average every SIDE in a match, then be able to average all the SIDES except the one it's currently calculating
-          in team situations, it can apply the same expchange to both teammates - calced based on their average together
-        */
-        var winnerNames;
-        var loserNames;
-
         var winnerSide = {
           teamKey: null,
+          innerTeamKeys: [],
           names: [],
           powers: [],
           avgPower: 0,
         };
         var winnerIDs = [];
+        var idPower = new Map();
         for (let w of match.winner) {
           if (w === null) {
             continue;
@@ -480,10 +520,11 @@ exports.calcRankings = async (req, res) => {
             wres.power = calcWrestlerPower(wres, show.date).power;
           }
           winnerSide.powers.push(wres.power);
+          idPower.set(w._id, wres.power);
           wresMap.set(w.name, wres);
-          var powerSum = winnerSide.powers.reduce((a, b) => a + b, 0);
-          winnerSide.avgPower = powerSum / winnerSide.powers.length;
         }
+        var powerSum = winnerSide.powers.reduce((a, b) => a + b, 0);
+        winnerSide.avgPower = powerSum / winnerSide.powers.length;
         var winnerKey = JSON.stringify(winnerIDs.sort());
         //this should change what it's calcing with if a team exists
         if (teamMap.has(winnerKey)) {
@@ -498,6 +539,47 @@ exports.calcRankings = async (req, res) => {
           winnerSide.teamKey = winnerKey;
           winnerSide.avgPower = team.power;
         }
+        if (match.winner.length > 2) {
+          // this SHOULD, if it's a multi-man tag with a tag team contained, find all contained tag teams and recalc the poweravg to use the teams' power instead
+          var totalTeamPower = 0;
+          var totalTeamCount = 0;
+
+          var innerTeamResults = findInnerTeams(
+            winnerIDs,
+            teamMap,
+            idPower,
+            winnerKey,
+            show.date
+          );
+
+          var inTeam = innerTeamResults.inTeam;
+          teamMap = innerTeamResults.teamMap;
+          idPower = innerTeamResults.idPower;
+
+          // go through the idpower map, skip everyone thats also in the inteam map, add their power to totalpower and increase totalteamcount
+          // side note: there's definitely a specific word for increasing a value by 1 but i can't remember it
+          for (let [key, value] of idPower) {
+            if (!inTeam.has(key)) {
+              totalTeamPower += value;
+              totalTeamCount++;
+            }
+          }
+          //use alreadyUsed to keep track of which teams have already had their power added, since each team has two records in the map
+          var alreadyUsed = new Map();
+          for (let [key, value] of inTeam) {
+            if (!alreadyUsed.has(value.name)) {
+              alreadyUsed.set(value.name);
+              winnerSide.innerTeamKeys.push(
+                JSON.stringify(value.wrestlers.sort())
+              );
+              totalTeamPower += value.power;
+              totalTeamCount++;
+            }
+          }
+          // this should create a properly averaged power of all the singles wrestlers and all the tag teams
+          winnerSide.avgPower = totalTeamPower / totalTeamCount;
+        }
+
         var loserSides = [];
         for (let w2 of match.loser) {
           /*
@@ -509,11 +591,13 @@ exports.calcRankings = async (req, res) => {
           */
           var newLoser = {
             teamKey: null,
+            innerTeamKeys: [],
             names: [],
             powers: [],
             avgPower: 0,
           };
           var loserIDs = [];
+          var idPower = new Map();
           for (let w of w2) {
             if (w === null) {
               continue;
@@ -542,6 +626,7 @@ exports.calcRankings = async (req, res) => {
             if (wres.boosts.length > 0) {
               wres.power = calcWrestlerPower(wres, show.date).power;
             }
+            idPower.set(w._id, wres.power);
             newLoser.powers.push(wres.power);
             wresMap.set(w.name, wres);
           }
@@ -561,6 +646,34 @@ exports.calcRankings = async (req, res) => {
             teamMap.set(loserKey, team);
             newLoser.teamKey = loserKey;
             newLoser.avgPower = team.power;
+          }
+          if (w2.length > 2) {
+            var totalTeamPower = 0;
+            var totalTeamCount = 0;
+            var innerTeamResults = findInnerTeams(
+              loserIDs,
+              teamMap,
+              idPower,
+              loserKey,
+              show.date
+            );
+
+            var inTeam = innerTeamResults.inTeam;
+            teamMap = innerTeamResults.teamMap;
+            idPower = innerTeamResults.idPower;
+
+            var alreadyUsed = new Map();
+            for (let [key, value] of inTeam) {
+              if (!alreadyUsed.has(value.name)) {
+                alreadyUsed.set(value.name);
+                newLoser.innerTeamKeys.push(
+                  JSON.stringify(value.wrestlers.sort())
+                );
+                totalTeamPower += value.power;
+                totalTeamCount++;
+              }
+            }
+            newLoser.avgPower = totalTeamPower / totalTeamCount;
           }
           loserSides.push(newLoser);
         }
@@ -640,7 +753,6 @@ exports.calcRankings = async (req, res) => {
             date: show.date,
           };
           wres.boosts.push(newBoost);
-
           if (wres.power === Number.NEGATIVE_INFINITY) {
             console.log('---BROKE HERE---');
             console.log(`${show.name} ---- ${show.date}`);
@@ -655,6 +767,20 @@ exports.calcRankings = async (req, res) => {
             boosts: wres.boosts,
             id: wres.id,
           });
+          if (winnerSide.innerTeamKeys.length > 0) {
+            // if the team is an existing trio, it'll cut the value granted to the inner team
+            // this should prevent inner team power from growing out of control
+            if (team) {
+              newBoost.startPower = newBoost.startPower * 0.2;
+            } else {
+              newBoost.startPower = newBoost.startPower * 0.5;
+            }
+
+            for (let innerKey of winnerSide.innerTeamKeys) {
+              var innerTeam = teamMap.get(innerKey);
+              innerTeam.boosts.push(newBoost);
+            }
+          }
           // console.log(`${w.name} POWER = ${w.power}`);
         }
         for (let w2 of match.loser) {
@@ -670,6 +796,10 @@ exports.calcRankings = async (req, res) => {
             var team = null;
             var teamKey = null;
 
+            // okay, make this master array of all the inner teams. this should allow me to boost all of them
+            //
+            var innerTeamKeys = [];
+
             //this only adds losersides that AREN'T the one we're wokring on to the average
 
             for (let loser of loserSides) {
@@ -684,6 +814,7 @@ exports.calcRankings = async (req, res) => {
                   teamKey = loser.teamKey;
                   team = teamMap.get(loser.teamKey);
                 }
+                innerTeamKeys = loser.innerTeamKeys;
                 break;
               }
               opponentPowers.push(loser.avgPower);
@@ -701,7 +832,7 @@ exports.calcRankings = async (req, res) => {
 
             var singleChange = 0 + powChange;
             if (team) {
-              //if there's a matching team, then the single power is cut to a quarter and a boost is created for the team
+              //if there's a matching team, then the single power is cut to a tenth and a boost is created for the team
               //the team in the map is also updated
               singleChange = powChange * 0.1;
               var newBoost = {
@@ -762,6 +893,41 @@ exports.calcRankings = async (req, res) => {
               boosts: wres.boosts,
               id: wres.id,
             });
+
+            // INNER TEAM CALC
+            // has to go down here so it can work off the same boost as the inner singles calc
+            if (w2.length > 2 && innerTeamKeys.length > 0) {
+              if (team) {
+                newBoost.startPower = newBoost.startPower * 0.2;
+              } else {
+                newBoost.startPower = newBoost.startPower * 0.5;
+              }
+              // check against existing boosts, if boost isn't already there we add it.
+              // duplicate boosts should still be avoided
+              for (let innerKey of innerTeamKeys) {
+                var innerTeam = teamMap.get(innerKey);
+                var newBoostString = JSON.stringify(newBoost);
+                var found = false;
+                for (let b of innerTeam.boosts) {
+                  var b2 = {
+                    startPower: b.startPower,
+                    win: b.win,
+                    sideSize: b.sideSize,
+                    showMod: b.showMod,
+                    titleMod: b.titleMod,
+                    date: b.date,
+                  };
+                  if (JSON.stringify(b2) == newBoostString) {
+                    found = true;
+                    break;
+                  }
+                }
+                if (!found) {
+                  innerTeam.boosts.push(newBoost);
+                }
+                teamMap.set(innerKey, innerTeam);
+              }
+            }
           }
         }
         // break;
@@ -786,9 +952,9 @@ exports.calcRankings = async (req, res) => {
       wres.power = power;
 
       wres.startPower = value.startPower;
-      if (calcPower.singlesGap >= 84) {
+      if (calcPower.singlesGap >= 56) {
         wres.active = false;
-      } else if (calcPower.singlesGap <= 7) {
+      } else if (calcPower.singlesGap <= 14) {
         wres.active = true;
       }
       if (value.name == 'Orange Cassidy') {
@@ -817,10 +983,10 @@ exports.calcRankings = async (req, res) => {
       team.power = power;
       team.startPower = value.startPower;
       team.male = value.male;
-      if (calcPower.timeGap >= 84) {
+      if (calcPower.timeGap >= 70) {
         team.active = false;
-      } else if (calcPower.timeGap <= 7) {
-        wres.active = true;
+      } else if (calcPower.timeGap <= 14) {
+        team.active = true;
       }
       if (value.name == 'FTR') {
         console.log(`FTR | ${team.power}`);
