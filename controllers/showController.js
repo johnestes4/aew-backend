@@ -223,68 +223,89 @@ exports.newShow = async (req, res) => {
     */
     delete show._id;
     show = await Show.create(show);
+    // now the show has an id and we can do all the heavy lifting for titles
+    // because of how it has to save repeatedly to get all the ids, i don't think i can test this with no db changes
+    // i'll wait til after double or nothing and the title changes that will probably happen there
+    // back up the whole DB, add the new show, and see if the champions properly update
     for (let match of newMatches) {
       match.show = show._id;
       if (newTitleReigns.has(match._id) || newTitleProxies.has(match._id)) {
         var newProxy = newTitleProxies.get(match._id);
-        /*
-          HOW TO DEAL WITH TITLE REIGNS AND PROXIES
-            if new title reigns has match id, then you know it's gonna be a title change.
-              find a title reign for the right belt with the losers as champions. set show as endShow.
-                  save updated old reign to DB
-                    set as old reign reignIn for the new proxy
-                create a new title reign for the new reign. match.winner as champion, title, startShow.
-                  save new title reign as reignOut for new proxy. save new proxy
-                get title out of titleChanges. add new reign to titleReigns. save title.
-            else if there's a new title proxy but not a new title change, it's a defense and we only need the proxy
-              find a title reign with the winners as champions. save to new proxy as reignIn
-              save new proxy
-              done
-        */
 
+        // if there's no new title reign, this is a DEFENSE and we only need a proxy
         if (!newTitleReigns.has(match._id)) {
+          // find a title reign with a winner in common for the proper title
           var reigns = await TitleReign.find({
             $and: [
               { champion: { $in: match.winner[0] } },
-              { title: { $eq: newReign.title } },
+              { title: { $eq: newProxy.title } },
             ],
           });
+          // sift through found reigns to find a perfect match of champions with the proper title and no endShow
           for (let reign of reigns) {
             if (
               JSON.stringify(reign.champion.sort()) ==
                 JSON.stringify(match.winner.sort()) &&
               reign.endShow === undefined
             ) {
+              // set correct reign as reignIn for new proxy, then create it
               newProxy.reignIn = reign._id;
               newProxy = await MatchTitleProxy.create(newProxy);
+              // link new proxy to match, then break
               match.title.push(newProxy._id);
-              match = await Match.findByIdAndUpdate(match._id, match);
               break;
             }
           }
         } else {
+          // this means there IS a new title reign, which means a title change
+          // title changes require changes to the existing title reign, a new title reign, changes to the title, and a new proxy
           newReign = newTitleReigns.get(match._id);
           newReign.startShow = show._id;
+          // find a reign where the champions match the LOSER, as reflected in the newReign object
           var reigns = await TitleReign.find({
             $and: [
-              { champion: { $in: match.loser[0] } },
+              { champion: { $in: newReign.loser[0] } },
               { title: { $eq: newReign.title } },
             ],
           });
           for (let reign of reigns) {
+            // find the perfect match, same as above
+            // (this should probably be a separate function that gets reused but i just need this to work right now)
             if (
               JSON.stringify(reign.champion.sort()) ==
-                JSON.stringify(match.loser.sort()) &&
+                JSON.stringify(newReign.loser.sort()) &&
               reign.endShow === undefined
             ) {
+              // set the current show as an endreign for the existing reign. save existing reign
               reign.endShow = show._id;
-              await TitleReign.findByIdAndUpdate(reign._id, reign);
-
+              reign = await TitleReign.findByIdAndUpdate(reign._id, reign);
+              // set existing reign as reignIn on the proxy
+              newProxy.reignIn = reign._id;
+              //i'm not completely sure if deleting loser off newReign will remove it from the map, oe if it would be essential after using it once
+              //honestly i'm pretty sure this is unnecessary
+              //but i don't want to have to think it through any further right now so i'm playing it safe
+              var newNewReign = {
+                title: newReign.title,
+                champion: newReign.champion,
+                startShow: show._id,
+              };
+              newNewReign = await TitleReign.create(newNewReign);
+              // get the title, add the new reign to its reign array, save changes
+              var title = titleChanges.get(newNewReign.title);
+              title.reigns.push(newNewReign._id);
+              title = await Title.findByIdAndUpdate(title._id, title);
+              // set new reign as reignout for the new proxy, save new proxy
+              newProxy.reignOut = newNewReign._id;
+              newProxy = await MatchTitleProxy.create(newProxy);
+              // attach new proxy to match
+              match.title.push(newProxy._id);
               break;
             }
           }
         }
       }
+      // save the match. if there was a titleproxy created it should have that. if not it's just with show id added
+      match = await Match.findByIdAndUpdate(match._id, match);
     }
 
     console.log(show._id);
