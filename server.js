@@ -17,10 +17,7 @@ mongoose
   .then(() => console.log('<DATABASE CONNECTION ESTABLISHED>'));
 
 /*======SERVER======*/
-var port = process.env.PORT;
-if (process.env.NODE_ENV == 'production') {
-  port = process.env.PROD_PORT;
-}
+const port = process.env.PORT;
 
 app.listen(port, () => {
   console.log(`<PORT ${port} SERVER CONNECTION ESTABLISHED>`);
