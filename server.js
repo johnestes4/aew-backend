@@ -8,12 +8,9 @@ const app = require('./app');
 //remember: environment variables go in CONFIG.ENV
 
 /*======DATABASE======*/
-var dbString = process.env.DATABASE_LOCAL;
-if (process.env.NODE_ENV == 'production') {
-  dbString = process.env.MONGO_URI;
-}
+
 mongoose
-  .connect(dbString, {})
+  .connect(process.env.MONGO_URI, {})
   .then(() => console.log('<DATABASE CONNECTION ESTABLISHED>'));
 
 /*======SERVER======*/
