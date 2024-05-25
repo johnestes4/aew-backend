@@ -8,6 +8,7 @@ const Match = require('../models/match');
 
 const router = express.Router();
 
+router.route('/').get(rankingsController.getRankings);
 router.route('/calc').get(rankingsController.calcRankings);
 
 module.exports = router;

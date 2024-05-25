@@ -1,9 +1,109 @@
 const Match = require('../models/match');
 const Wrestler = require('./../models/wrestler');
 const Show = require('./../models/show');
+const Title = require('./../models/title');
 const showController = require('../controllers/showController');
 const APIFeatures = require('../utils/apiFeatures');
 const Team = require('./../models/team');
+
+exports.getRankings = async (req, res) => {
+  try {
+    const featuresM = new APIFeatures(
+      Wrestler.find({
+        male: { $eq: 'true' },
+        active: { $eq: 'true' },
+      }),
+      req.query
+    )
+      .sort('-power')
+      .limitFields('name,power,profileImage');
+    const featuresF = new APIFeatures(
+      Wrestler.find({
+        male: { $eq: 'false' },
+        active: { $eq: 'true' },
+      }),
+      req.query
+    )
+      .sort('-power')
+      .limitFields('name,power,profileImage');
+    const features2 = new APIFeatures(
+      Team.find({
+        male: { $eq: 'true' },
+        wrestlers: { $size: 2 },
+        active: { $eq: 'true' },
+      }),
+      req.query
+    )
+      .sort('-power')
+      .limitFields('name,power');
+    const features3 = new APIFeatures(
+      Team.find({
+        male: { $eq: 'true' },
+        wrestlers: { $size: 3 },
+        active: { $eq: 'true' },
+      }),
+      req.query
+    )
+      .sort('-power')
+      .limitFields('name,power');
+    const featuresT = new APIFeatures(
+      Title.find({
+        promotion: { $eq: 'AEW' },
+        name: { $not: /Interim/i },
+      })
+        .populate({
+          path: 'currentChampion',
+          model: Wrestler,
+        })
+        .populate({
+          path: 'currentChampionTeam',
+          model: Team,
+        }),
+      req.query
+    ).limitFields('name,currentChampion');
+
+    const featuresD = new APIFeatures(
+      Show.find().populate({
+        path: 'matches',
+        model: Match,
+      }),
+      req.query
+    )
+      .filter()
+      .sort('-date')
+      .paginate();
+
+    var titles = await featuresT.query;
+
+    const male = await featuresM.query;
+
+    const female = await featuresF.query;
+
+    const teams = await features2.query;
+
+    const trios = await features3.query;
+
+    var date = await featuresD.query;
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        male: male.slice(0, 20),
+        female: female.slice(0, 20),
+        tag: teams.slice(0, 20),
+        trios: trios.slice(0, 20),
+        titles: titles,
+        date: date[0].date,
+      },
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(404).json({
+      status: 'fail',
+      message: err,
+    });
+  }
+};
 
 function calcShowMod(show, match, win) {
   var showMod = 1;
