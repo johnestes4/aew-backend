@@ -310,13 +310,13 @@ exports.newShow = async (req, res) => {
 
     console.log(show._id);
     await rankingsController.calcRankings(req, res);
-    res.status(201).json({
-      //status 201 means Created
-      status: 'success',
-      data: {
-        show: show,
-      },
-    });
+    // res.status(201).json({
+    //   //status 201 means Created
+    //   status: 'success',
+    //   data: {
+    //     show: show,
+    //   },
+    // });
   } catch (err) {
     console.log(err);
     res.status(400).json({

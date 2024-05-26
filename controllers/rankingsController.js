@@ -6,7 +6,60 @@ const showController = require('../controllers/showController');
 const APIFeatures = require('../utils/apiFeatures');
 const Team = require('./../models/team');
 
-exports.getRankings = async (req, res) => {
+savePowerHistory = async (arr, titles, team) => {
+  var champIDs = new Map();
+  for (let t of titles) {
+    if (t.currentChampionTeam) {
+      champIDs.set(t.currentChampionTeam._id.toString());
+    } else {
+      for (c of t.currentChampion) {
+        champIDs.set(c._id.toString());
+      }
+    }
+  }
+
+  var count = 1;
+  for (let wres of arr) {
+    if (!wres || wres.boosts === undefined || wres.boosts.length == 0) {
+      console.log('skipping at first hurdle');
+      continue;
+    }
+    wres.powerHistory = [];
+    if (!wres.powerHistory) {
+      wres.powerHistory = [];
+    }
+    var lastDate = wres.boosts[wres.boosts.length - 1].date;
+    if (wres.powerHistory.length > 0) {
+      if (lastDate == wres.powerHistory[wres.powerHistory.length - 1].date) {
+        continue;
+      }
+    }
+    while (wres.powerHistory.length > 20) {
+      wres.powerHistory.splice(0, 1);
+    }
+
+    var newHistory = {
+      date: lastDate,
+      power: wres.power,
+    };
+
+    if (champIDs.has(wres._id.toString())) {
+      newHistory.place = -1;
+    } else {
+      newHistory.place = count;
+      count++;
+    }
+    console.log(`${wres.name} | ${newHistory.place}`);
+    wres.powerHistory.push(newHistory);
+    if (team) {
+      wres = await Team.findByIdAndUpdate(wres._id, wres);
+    } else {
+      wres = await Wrestler.findByIdAndUpdate(wres._id, wres);
+    }
+  }
+};
+
+calcPowerHistory = async (req, res) => {
   try {
     const featuresM = new APIFeatures(
       Wrestler.find({
@@ -16,7 +69,7 @@ exports.getRankings = async (req, res) => {
       req.query
     )
       .sort('-power')
-      .limitFields('name,power,profileImage');
+      .limitFields('name,power,profileImage,boosts,powerHistory');
     const featuresF = new APIFeatures(
       Wrestler.find({
         male: { $eq: 'false' },
@@ -25,7 +78,7 @@ exports.getRankings = async (req, res) => {
       req.query
     )
       .sort('-power')
-      .limitFields('name,power,profileImage');
+      .limitFields('name,power,profileImage,boosts,powerHistory');
     const features2 = new APIFeatures(
       Team.find({
         male: { $eq: 'true' },
@@ -35,7 +88,7 @@ exports.getRankings = async (req, res) => {
       req.query
     )
       .sort('-power')
-      .limitFields('name,power');
+      .limitFields('name,power,boosts,powerHistory');
     const features3 = new APIFeatures(
       Team.find({
         male: { $eq: 'true' },
@@ -60,7 +113,7 @@ exports.getRankings = async (req, res) => {
           model: Team,
         }),
       req.query
-    ).limitFields('name,currentChampion');
+    ).limitFields('name,currentChampion,boosts,powerHistory');
 
     const featuresD = new APIFeatures(
       Show.find().populate({
@@ -83,6 +136,94 @@ exports.getRankings = async (req, res) => {
 
     const trios = await features3.query;
 
+    var date = await featuresD.query;
+
+    console.log('calcing male history...');
+    await savePowerHistory(male, titles, false);
+    console.log('calcing female history...');
+    await savePowerHistory(female, titles, false);
+    console.log('calcing tag history...');
+    await savePowerHistory(teams, titles, true);
+    console.log('calcing trio history...');
+    await savePowerHistory(trios, titles, true);
+  } catch (err) {
+    console.log(err);
+    return err;
+  }
+};
+
+exports.getRankings = async (req, res) => {
+  try {
+    const featuresM = new APIFeatures(
+      Wrestler.find({
+        male: { $eq: 'true' },
+        active: { $eq: 'true' },
+      }),
+      req.query
+    )
+      .sort('-power')
+      .limitFields('name,power,profileImage,boosts,powerHistory');
+    const featuresF = new APIFeatures(
+      Wrestler.find({
+        male: { $eq: 'false' },
+        active: { $eq: 'true' },
+      }),
+      req.query
+    )
+      .sort('-power')
+      .limitFields('name,power,profileImage,boosts,powerHistory');
+    const features2 = new APIFeatures(
+      Team.find({
+        male: { $eq: 'true' },
+        wrestlers: { $size: 2 },
+        active: { $eq: 'true' },
+      }),
+      req.query
+    )
+      .sort('-power')
+      .limitFields('name,power,boosts,powerHistory');
+    const features3 = new APIFeatures(
+      Team.find({
+        male: { $eq: 'true' },
+        wrestlers: { $size: 3 },
+        active: { $eq: 'true' },
+      }),
+      req.query
+    )
+      .sort('-power')
+      .limitFields('name,power');
+    const featuresT = new APIFeatures(
+      Title.find({
+        promotion: { $eq: 'AEW' },
+        name: { $not: /Interim/i },
+      })
+        .populate({
+          path: 'currentChampion',
+          model: Wrestler,
+        })
+        .populate({
+          path: 'currentChampionTeam',
+          model: Team,
+        }),
+      req.query
+    ).limitFields('name,currentChampion,boosts,powerHistory');
+
+    const featuresD = new APIFeatures(
+      Show.find().populate({
+        path: 'matches',
+        model: Match,
+      }),
+      req.query
+    )
+      .filter()
+      .sort('-date')
+      .paginate();
+
+    var titles = await featuresT.query;
+    const male = await featuresM.query;
+    const female = await featuresF.query;
+    const teams = await features2.query;
+    const trios = await features3.query;
     var date = await featuresD.query;
 
     res.status(200).json({
@@ -998,6 +1139,8 @@ exports.calcRankings = async (req, res) => {
       }
       await Team.findByIdAndUpdate(value.id, team);
     }
+
+    await calcPowerHistory(req, res);
 
     console.log('---FINISHED---');
     res.status(201).json({

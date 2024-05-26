@@ -27,6 +27,13 @@ const wrestlerSchema = new Schema(
       default: 1000,
     },
     startPower: Number,
+    powerHistory: [
+      {
+        date: Date,
+        power: Number,
+        place: Number,
+      },
+    ],
     boosts: [
       {
         //gotta make match/wrestler proxies for here, this can't just have a reference straight to matches - matches also reference wrestlers and it creates a loop

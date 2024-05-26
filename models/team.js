@@ -27,6 +27,13 @@ const teamSchema = new mongoose.Schema(
     subTeams: [String],
     power: Number,
     startPower: Number,
+    powerHistory: [
+      {
+        date: Date,
+        power: Number,
+        place: Number,
+      },
+    ],
     faction: Boolean,
     active: Boolean,
     male: {
