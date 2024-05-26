@@ -1,11 +1,11 @@
-const Show = require('./../models/show');
-const Match = require('./../models/match');
-const Wrestler = require('./../models/wrestler');
+const Show = require('../models/show');
+const Match = require('../models/match');
+const Wrestler = require('../models/wrestler');
 const TitleReign = require('../models/titleReign');
-const Title = require('./../models/title');
-const Team = require('./../models/team');
-const rankingsController = require('./rankingsController');
-const APIFeatures = require('./../utils/apiFeatures');
+const Title = require('../models/title');
+const Team = require('../models/team');
+const rankingsController = require('./rankings.controller');
+const APIFeatures = require('../utils/apiFeatures');
 const MatchTitleProxy = require('../models/matchTitleProxy');
 
 exports.getAllShows = async (req, res) => {
@@ -118,7 +118,7 @@ exports.deleteShow = async (req, res) => {
 
 exports.newShow = async (req, res) => {
   try {
-    var show = req.body;
+    var show = req.body.show;
     const newMatches = [];
     var newTitleReigns = new Map();
     var newTitleProxies = new Map();

@@ -1,5 +1,6 @@
 const express = require('express');
-const wrestlerController = require('../controllers/wrestlerController');
+const wrestlerController = require('../controllers/wrestler.controller');
+const authController = require('../controllers/auth.controller');
 
 const Title = require('../models/title');
 const Wrestler = require('../models/wrestler');
@@ -19,11 +20,11 @@ router.route('/record/:id').get(wrestlerController.generateRecord);
 router
   .route('/')
   .get(wrestlerController.getAllWrestlers)
-  .post(wrestlerController.createWrestler);
+  .post(authController.auth, wrestlerController.createWrestler);
 router
   .route('/:id')
-  .get(wrestlerController.getWrestler)
-  .patch(wrestlerController.updateWrestler)
-  .delete(wrestlerController.deleteWrestler);
+  .get(authController.auth, wrestlerController.getWrestler)
+  .patch(authController.auth, wrestlerController.updateWrestler)
+  .delete(authController.auth, wrestlerController.deleteWrestler);
 
 module.exports = router;

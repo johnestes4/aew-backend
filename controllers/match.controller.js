@@ -1,8 +1,8 @@
-const Match = require('./../models/match');
-const Show = require('./../models/show');
-const Title = require('./../models/title');
-const Wrestler = require('./../models/wrestler');
-const APIFeatures = require('./../utils/apiFeatures');
+const Match = require('../models/match');
+const Show = require('../models/show');
+const Title = require('../models/title');
+const Wrestler = require('../models/wrestler');
+const APIFeatures = require('../utils/apiFeatures');
 
 exports.getAllMatches = async (req, res) => {
   try {

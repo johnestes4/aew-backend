@@ -1,16 +1,17 @@
 const TitleReign = require('../models/titleReign');
 const Title = require('../models/title');
-const Match = require('./../models/match');
-const Team = require('./../models/team');
+const Match = require('../models/match');
+const Team = require('../models/team');
 const Show = require('../models/show');
 const Wrestler = require('../models/wrestler');
-const MatchTitleProxy = require('./../models/matchTitleProxy');
-const teamController = require('../controllers/teamController');
+const MatchTitleProxy = require('../models/matchTitleProxy');
+const teamController = require('./team.controller');
+const authController = require('./auth.controller');
 
 const fs = require('fs');
 
 const APIFeatures = require('../utils/apiFeatures');
-const matchTitleProxy = require('./../models/matchTitleProxy');
+const matchTitleProxy = require('../models/matchTitleProxy');
 
 exports.cleanAliases = async (req, res) => {
   try {

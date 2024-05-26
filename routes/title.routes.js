@@ -1,5 +1,6 @@
 const express = require('express');
-const titleController = require('../controllers/titleController');
+const titleController = require('../controllers/title.controller');
+const authController = require('../controllers/auth.controller');
 
 const Title = require('../models/title');
 const Wrestler = require('../models/wrestler');
@@ -11,11 +12,11 @@ const router = express.Router();
 router
   .route('/')
   .get(titleController.getAllTitles)
-  .post(titleController.createTitle);
+  .post(authController.auth, titleController.createTitle);
 router
   .route('/:id')
   .get(titleController.getTitle)
-  .patch(titleController.updateTitle)
-  .delete(titleController.deleteTitle);
+  .patch(authController.auth, titleController.updateTitle)
+  .delete(authController.auth, titleController.deleteTitle);
 
 module.exports = router;

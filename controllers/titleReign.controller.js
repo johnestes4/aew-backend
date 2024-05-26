@@ -1,24 +1,35 @@
-const MatchTitleProxy = require('./../models/matchTitleProxy');
-const APIFeatures = require('./../utils/apiFeatures');
+const TitleReign = require('../models/titleReign');
+const APIFeatures = require('../utils/apiFeatures');
+const Title = require('../models/title');
+const Wrestler = require('../models/wrestler');
+const Show = require('../models/show');
+const Match = require('../models/match');
 
-exports.getAllMatchTitleProxies = async (req, res) => {
+exports.getAllTitleReigns = async (req, res) => {
   try {
-    const features = new APIFeatures(MatchTitleProxy.find(), req.query)
+    const features = new APIFeatures(
+      TitleReign.find()
+        .populate({ path: 'title', model: Title })
+        .populate({ path: 'champion', model: Wrestler })
+        .populate({ path: 'startShow', model: Show })
+        .populate({ path: 'endShow', model: Show })
+        .populate({ path: 'defenses', model: Match }),
+      req.query
+    )
       .filter()
-      .sort()
-      .limitFields()
-      .paginate();
+      .sort();
     // await executes the query and returns all the documents
-    const titleProxies = await features.query;
+    const titleReigns = await features.query;
 
     res.status(200).json({
       status: 'success',
-      results: titleProxies.length,
+      results: titleReigns.length,
       data: {
-        titleProxies,
+        titleReigns,
       },
     });
   } catch (err) {
+    console.log(err);
     res.status(404).json({
       status: 'fail',
       message: err,
@@ -26,13 +37,13 @@ exports.getAllMatchTitleProxies = async (req, res) => {
   }
 };
 
-exports.getMatchTitleProxy = async (req, res) => {
+exports.getTitleReign = async (req, res) => {
   try {
-    const matchTitleProxy = await MatchTitleProxy.findById(req.params.id);
+    const titleReign = await TitleReign.findById(req.params.id);
 
     res.status(200).json({
       status: 'success',
-      data: { matchTitleProxy },
+      data: { titleReign },
     });
   } catch (err) {
     res.status(404).json({
@@ -42,15 +53,15 @@ exports.getMatchTitleProxy = async (req, res) => {
   }
 };
 
-exports.createMatchTitleProxy = async (req, res) => {
+exports.createTitleReign = async (req, res) => {
   try {
-    const newMatchTitleProxy = await MatchTitleProxy.create(req.body);
+    const newTitleReign = await TitleReign.create(req.body);
 
     res.status(201).json({
       //status 201 means Created
       status: 'success',
       data: {
-        matchTitleProxy: newMatchTitleProxy,
+        titleReign: newTitleReign,
       },
     });
   } catch (err) {
@@ -61,9 +72,9 @@ exports.createMatchTitleProxy = async (req, res) => {
   }
 };
 
-exports.updateMatchTitleProxy = async (req, res) => {
+exports.updateTitleReign = async (req, res) => {
   try {
-    const matchTitleProxy = await MatchTitleProxy.findByIdAndUpdate(
+    const titleReign = await TitleReign.findByIdAndUpdate(
       req.params.id,
       req.body,
       {
@@ -76,7 +87,7 @@ exports.updateMatchTitleProxy = async (req, res) => {
     );
     res.status(200).json({
       status: 'success',
-      data: { matchTitleProxy },
+      data: { titleReign },
     });
   } catch (err) {
     res.status(404).json({
@@ -86,9 +97,9 @@ exports.updateMatchTitleProxy = async (req, res) => {
   }
 };
 
-exports.deleteMatchTitleProxy = async (req, res) => {
+exports.deleteTitleReign = async (req, res) => {
   try {
-    await MatchTitleProxy.findByIdAndDelete(req.params.id);
+    await TitleReign.findByIdAndDelete(req.params.id);
     res.status(204).json({
       status: 'success',
       data: null,

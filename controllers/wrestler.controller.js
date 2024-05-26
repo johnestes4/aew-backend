@@ -1,12 +1,12 @@
-const Wrestler = require('./../models/wrestler');
-const Match = require('./../models/match');
-const Show = require('./../models/show');
-const MatchTitleProxy = require('./../models/matchTitleProxy');
-const TitleReign = require('./../models/titleReign');
-const Title = require('./../models/title');
-const Team = require('./../models/team');
+const Wrestler = require('../models/wrestler');
+const Match = require('../models/match');
+const Show = require('../models/show');
+const MatchTitleProxy = require('../models/matchTitleProxy');
+const TitleReign = require('../models/titleReign');
+const Title = require('../models/title');
+const Team = require('../models/team');
 
-const APIFeatures = require('./../utils/apiFeatures');
+const APIFeatures = require('../utils/apiFeatures');
 
 exports.male = (req, res, next) => {
   //this alias middleware sends out a preset query, and is attached to a specific API call
@@ -119,13 +119,17 @@ exports.createWrestler = async (req, res) => {
 
 exports.updateWrestler = async (req, res) => {
   try {
-    const wrestler = await Wrestler.findByIdAndUpdate(req.params.id, req.body, {
-      //this third argument makes sure the new document is the one that gets returned
-      new: true,
-      //this validates the operation against the model's schema
-      //presumably it helps stop invalid changes
-      runValidators: true,
-    });
+    const wrestler = await Wrestler.findByIdAndUpdate(
+      req.params.id,
+      req.body.wres,
+      {
+        //this third argument makes sure the new document is the one that gets returned
+        new: true,
+        //this validates the operation against the model's schema
+        //presumably it helps stop invalid changes
+        runValidators: true,
+      }
+    );
     res.status(200).json({
       status: 'success',
       data: { wrestler },

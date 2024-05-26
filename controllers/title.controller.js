@@ -1,10 +1,10 @@
 const TitleReign = require('../models/titleReign');
-const Title = require('./../models/title');
-const Show = require('./../models/show');
-const Wrestler = require('./../models/wrestler');
-const Team = require('./../models/team');
+const Title = require('../models/title');
+const Show = require('../models/show');
+const Wrestler = require('../models/wrestler');
+const Team = require('../models/team');
 
-const APIFeatures = require('./../utils/apiFeatures');
+const APIFeatures = require('../utils/apiFeatures');
 
 exports.getAllTitles = async (req, res) => {
   try {

@@ -1,8 +1,8 @@
-const Team = require('./../models/team');
-const Wrestler = require('./../models/wrestler');
-const Match = require('./../models/match');
+const Team = require('../models/team');
+const Wrestler = require('../models/wrestler');
+const Match = require('../models/match');
 
-const APIFeatures = require('./../utils/apiFeatures');
+const APIFeatures = require('../utils/apiFeatures');
 
 exports.male = (req, res, next) => {
   //this alias middleware sends out a preset query, and is attached to a specific API call

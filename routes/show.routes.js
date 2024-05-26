@@ -1,5 +1,6 @@
 const express = require('express');
-const showController = require('../controllers/showController');
+const showController = require('../controllers/show.controller');
+const authController = require('../controllers/auth.controller');
 
 const Title = require('../models/title');
 const Wrestler = require('../models/wrestler');
@@ -12,12 +13,12 @@ router.route('/new').post(showController.newShow);
 router
   .route('/')
   .get(showController.getAllShows)
-  .post(showController.createShow);
+  .post(authController.auth, showController.createShow);
 router;
 router
   .route('/:id')
   .get(showController.getShow)
-  .patch(showController.updateShow)
-  .delete(showController.deleteShow);
+  .patch(authController.auth, showController.updateShow)
+  .delete(authController.auth, showController.deleteShow);
 
 module.exports = router;

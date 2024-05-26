@@ -1,5 +1,6 @@
 const express = require('express');
-const teamController = require('../controllers/teamController');
+const teamController = require('../controllers/team.controller');
+const authController = require('../controllers/auth.controller');
 
 const Title = require('../models/title');
 const Team = require('../models/team');
@@ -34,11 +35,11 @@ router.route('/comboid').post(teamController.getTeamByComboID);
 router
   .route('/')
   .get(teamController.getAllTeams)
-  .post(teamController.createTeam);
+  .post(authController.auth, teamController.createTeam);
 router
   .route('/:id')
   .get(teamController.getTeam)
-  .patch(teamController.updateTeam)
-  .delete(teamController.deleteTeam);
+  .patch(authController.auth, teamController.updateTeam)
+  .delete(authController.auth, teamController.deleteTeam);
 
 module.exports = router;

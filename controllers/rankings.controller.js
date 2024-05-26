@@ -1,10 +1,10 @@
 const Match = require('../models/match');
-const Wrestler = require('./../models/wrestler');
-const Show = require('./../models/show');
-const Title = require('./../models/title');
-const showController = require('../controllers/showController');
+const Wrestler = require('../models/wrestler');
+const Show = require('../models/show');
+const Title = require('../models/title');
+const showController = require('./show.controller');
 const APIFeatures = require('../utils/apiFeatures');
-const Team = require('./../models/team');
+const Team = require('../models/team');
 
 savePowerHistory = async (arr, titles, team) => {
   var champIDs = new Map();
@@ -572,6 +572,8 @@ function findInnerTeams(ids, teamMap, idPower, masterKey, date) {
 
 exports.calcRankings = async (req, res) => {
   try {
+    console.log('IT LET ME THRU');
+    throw Error('STOPPING');
     const shows = await Show.find();
     var latestDate = null;
     var showCount = 0;

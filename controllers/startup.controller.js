@@ -3,13 +3,13 @@
 //the code elsewhere should be much cleaner. please do not hold the content of this controller against me
 
 const fs = require('fs');
-const Match = require('./../models/match');
-const Show = require('./../models/show');
-const Title = require('./../models/title');
+const Match = require('../models/match');
+const Show = require('../models/show');
+const Title = require('../models/title');
 const MatchTitleProxy = require('../models/matchTitleProxy');
-const TitleReign = require('./../models/titleReign');
-const Wrestler = require('./../models/wrestler');
-const APIFeatures = require('./../utils/apiFeatures');
+const TitleReign = require('../models/titleReign');
+const Wrestler = require('../models/wrestler');
+const APIFeatures = require('../utils/apiFeatures');
 
 exports.importData = async (req, res) => {
   try {

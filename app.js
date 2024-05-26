@@ -6,15 +6,16 @@ const Show = require('./models/show');
 const Team = require('./models/team');
 const Match = require('./models/match');
 
-const startupRouter = require('./routes/startupRoutes');
-const titleReignRouter = require('./routes/titleReignRoutes');
-const titleRouter = require('./routes/titleRoutes');
-const wrestlerRouter = require('./routes/wrestlerRoutes');
-const teamRouter = require('./routes/teamRoutes');
-const showRouter = require('./routes/showRoutes');
-const matchRouter = require('./routes/matchRoutes');
-const rankingRouter = require('./routes/rankingRoutes');
-const utilityRouter = require('./routes/utilityRoutes');
+const startupRouter = require('./routes/startup.routes');
+const titleReignRouter = require('./routes/titleReign.routes');
+const titleRouter = require('./routes/title.routes');
+const wrestlerRouter = require('./routes/wrestler.routes');
+const teamRouter = require('./routes/team.routes');
+const showRouter = require('./routes/show.routes');
+const matchRouter = require('./routes/match.routes');
+const rankingRouter = require('./routes/ranking.routes');
+const utilityRouter = require('./routes/utility.routes');
+const authRouter = require('./routes/auth.routes');
 
 const app = express();
 
@@ -23,6 +24,11 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev')); //morgan logs every http request with some basic info on it. neat
 }
 app.use(express.json()); //express middleware for json request handling, makes sure you get BODY
+app.use(
+  express.urlencoded({
+    extended: true,
+  })
+);
 
 //this generates a time on every request and attach it to req. you could then use that within the request functions if you want
 // app.use((req, res, next) => {
@@ -63,5 +69,6 @@ app.use('/api/teams', teamRouter);
 app.use('/api/matches', matchRouter);
 app.use('/api/rankings', rankingRouter);
 app.use('/api/utility', utilityRouter);
+app.use('/api/auth', authRouter);
 
 module.exports = app;
