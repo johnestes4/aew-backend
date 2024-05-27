@@ -162,14 +162,6 @@ makeNameString = async (names, winner) => {
     for (let w of members) {
       w = w.toString();
       if (teamMap.has(w)) {
-        // if (
-        //   teamMap.get(w).name == 'Chris Jericho & Jake Hager' ||
-        //   found.name == 'Chris Jericho & Jake Hager'
-        // ) {
-        //   console.log(
-        //     `${teamMap.get(w).name}: ${teamMap.get(w).boosts.length} || ${found.name}: ${found.boosts.length}`
-        //   );
-        // }
         if (
           // EXISTING TEAM IS BETTER
           (teamMap.get(w).boosts.length >= found.boosts.length &&
@@ -209,11 +201,6 @@ makeNameString = async (names, winner) => {
         }
       } else {
         teamMap.set(w, found);
-      }
-    }
-    for (let [key, value] of teamMap) {
-      if (value.name == 'Chris Jericho & Jake Hager') {
-        // console.log(key);
       }
     }
     return teamMap;

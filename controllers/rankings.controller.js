@@ -9,11 +9,13 @@ const Team = require('../models/team');
 savePowerHistory = async (arr, titles, team) => {
   var champIDs = new Map();
   for (let t of titles) {
-    if (t.currentChampionTeam) {
-      champIDs.set(t.currentChampionTeam._id.toString());
-    } else {
-      for (c of t.currentChampion) {
-        champIDs.set(c._id.toString());
+    if (t.name.includes('AEW')) {
+      if (t.currentChampionTeam) {
+        champIDs.set(t.currentChampionTeam._id.toString());
+      } else {
+        for (c of t.currentChampion) {
+          champIDs.set(c._id.toString());
+        }
       }
     }
   }
@@ -21,19 +23,12 @@ savePowerHistory = async (arr, titles, team) => {
   var count = 1;
   for (let wres of arr) {
     if (!wres || wres.boosts === undefined || wres.boosts.length == 0) {
-      console.log('skipping at first hurdle');
       continue;
     }
-    wres.powerHistory = [];
     if (!wres.powerHistory) {
       wres.powerHistory = [];
     }
     var lastDate = wres.boosts[wres.boosts.length - 1].date;
-    if (wres.powerHistory.length > 0) {
-      if (lastDate == wres.powerHistory[wres.powerHistory.length - 1].date) {
-        continue;
-      }
-    }
     while (wres.powerHistory.length > 20) {
       wres.powerHistory.splice(0, 1);
     }
@@ -49,7 +44,20 @@ savePowerHistory = async (arr, titles, team) => {
       newHistory.place = count;
       count++;
     }
-    console.log(`${wres.name} | ${newHistory.place}`);
+    // console.log(`${wres.name} | ${newHistory.place}`);
+    if (wres.powerHistory.length > 0) {
+      if (
+        lastDate.toString() ==
+        wres.powerHistory[wres.powerHistory.length - 1].date.toString()
+      ) {
+        wres.powerHistory[wres.powerHistory.length - 1] = newHistory;
+      } else {
+        wres.powerHistory.push(newHistory);
+      }
+    } else {
+      wres.powerHistory.push(newHistory);
+    }
+
     wres.powerHistory.push(newHistory);
     if (team) {
       wres = await Team.findByIdAndUpdate(wres._id, wres);
@@ -424,8 +432,8 @@ function calcStreak(wres, power, currentDate) {
         continue;
       }
       var newGap = Math.round(
-        ((currentDate.getTime() - boost.date.getTime()) /
-          (1000 * 60 * 60 * 24)) %
+        (currentDate.getTime() - boost.date.getTime()) /
+          (1000 * 60 * 60 * 24) /
           7
       );
       if (newGap < weeksSince) {
@@ -490,9 +498,12 @@ function calcStreak(wres, power, currentDate) {
     [0, 0.05, 0.07, 0.1, 0.14, 0.2],
     [0, 0.15, 0.16, 0.18, 0.2, 0.25],
   ];
-  var buffWeeksDecay = [1, 1, 0.95, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3];
+  var buffWeeksDecay = [1, 1, 0.9, 0.8, 0.67, 0.5, 0.33, 0.2, 0.05, 0];
   if (weeksSince > buffWeeksDecay.length - 1) {
     weeksSince = buffWeeksDecay.length - 1;
+  }
+  if (wres.name == 'Yuka Sakazaki') {
+    console.log(`YUKA | ${weeksSince} |`);
   }
 
   var titleStreak = 0;
@@ -573,7 +584,7 @@ function findInnerTeams(ids, teamMap, idPower, masterKey, date) {
 exports.calcRankings = async (req, res) => {
   try {
     console.log('IT LET ME THRU');
-    throw Error('STOPPING');
+    // throw Error('STOPPING');
     const shows = await Show.find();
     var latestDate = null;
     var showCount = 0;
@@ -1095,7 +1106,7 @@ exports.calcRankings = async (req, res) => {
       wres.power = power;
 
       wres.startPower = value.startPower;
-      if (calcPower.singlesGap >= 56) {
+      if (calcPower.singlesGap >= 28) {
         wres.active = false;
       } else if (calcPower.singlesGap <= 14) {
         wres.active = true;
@@ -1126,7 +1137,7 @@ exports.calcRankings = async (req, res) => {
       team.power = power;
       team.startPower = value.startPower;
       team.male = value.male;
-      if (calcPower.timeGap >= 70) {
+      if (calcPower.timeGap >= 42) {
         team.active = false;
       } else if (calcPower.timeGap <= 14) {
         team.active = true;

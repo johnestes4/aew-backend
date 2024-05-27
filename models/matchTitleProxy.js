@@ -35,54 +35,57 @@ const matchTitleProxySchema = new mongoose.Schema(
 //reignin and no reignout: defense
 //determine champion by reign.champion
 
-matchTitleProxySchema.pre('save', function (next, done) {
-  var transaction = this;
-  console.log('Checking for valid foreign keys');
-  Match.findById(transaction.match, function (err, found) {
-    if (found) {
-      Title.findById(transaction.title, function (err, found) {
-        if (found) {
-          return next();
-        } else {
-          return next(new Error('Title not found'));
-        }
-      });
-    } else {
-      return next(new Error('Match not found'));
-    }
-  });
-});
+// this doesn't work and i'm tired of trying to fix it
+// matchTitleProxySchema.pre('save', function (next, done) {
+//   var transaction = this;
+//   console.log('Checking for valid foreign keys');
+//   console.log(transaction.match);
+//   Match.findById(transaction.match).then(function (err, found) {
+//     console.log(found);
+//     if (found) {
+//       Title.findById(transaction.title).then(function (err, found) {
+//         if (found) {
+//           return next();
+//         } else {
+//           return next(new Error('Title not found'));
+//         }
+//       });
+//     } else {
+//       return next(new Error('Match not found'));
+//     }
+//   });
+// });
 
-matchTitleProxySchema.pre('save', function (next, done) {
-  var transaction = this;
-  console.log('inserting other half of foreign keys');
+// matchTitleProxySchema.pre('save', function (next, done) {
+//   var transaction = this;
+//   console.log('inserting other half of foreign keys');
 
-  var match = Match.findByIdAndUpdate(
-    transaction.match,
-    {
-      $addToSet: { matchTitleProxies: this._id },
-    },
-    { safe: true, upsert: true },
-    function (err, model) {
-      console.log(err);
-      console.log('Match updated');
-    }
-  );
+//   var match = Match.findByIdAndUpdate(
+//     transaction.match,
+//     {
+//       $addToSet: { matchTitleProxies: this._id },
+//     },
+//     { safe: true, upsert: true },
+//     function (err, model) {
+//       console.log(err);
+//       console.log('Match updated');
+//     }
+//   );
 
-  var title = Title.findByIdAndUpdate(
-    transaction.title,
-    {
-      $addToSet: { matchTitleProxies: this._id },
-    },
-    { safe: true, upsert: true },
-    function (err, model) {
-      console.log(err);
-      console.log('Title updated');
-    }
-  );
+//   var title = Title.findByIdAndUpdate(
+//     transaction.title,
+//     {
+//       $addToSet: { matchTitleProxies: this._id },
+//     },
+//     { safe: true, upsert: true },
+//     function (err, model) {
+//       console.log(err);
+//       console.log('Title updated');
+//     }
+//   );
 
-  next();
-});
+//   next();
+// });
 
 const matchTitleProxy = mongoose.model(
   'MatchTitleProxy',

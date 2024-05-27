@@ -1,7 +1,4 @@
 const mongoose = require('mongoose');
-const Wrestler = require('./wrestler');
-const Show = require('./show');
-const MatchTitleProxy = require('./matchTitleProxy');
 
 const matchSchema = new mongoose.Schema(
   {

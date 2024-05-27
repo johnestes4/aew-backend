@@ -23,7 +23,7 @@ router
   .post(authController.auth, wrestlerController.createWrestler);
 router
   .route('/:id')
-  .get(authController.auth, wrestlerController.getWrestler)
+  .get(wrestlerController.getWrestler)
   .patch(authController.auth, wrestlerController.updateWrestler)
   .delete(authController.auth, wrestlerController.deleteWrestler);
 
