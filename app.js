@@ -37,8 +37,15 @@ app.use(
 // });
 app.use(function (req, res, next) {
   // Website you wish to allow to connect
-  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:4200');
-
+  const allowedOrigins = [
+    'http://localhost:4200',
+    'http://localhost',
+    'https://aew-frontend.onrender.com',
+  ];
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
   // Request methods you wish to allow
   res.setHeader(
     'Access-Control-Allow-Methods',
