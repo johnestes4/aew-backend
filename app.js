@@ -43,6 +43,7 @@ app.use(function (req, res, next) {
     'https://aew-frontend.onrender.com',
   ];
   const origin = req.headers.origin;
+  console.log(origin);
   if (allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
