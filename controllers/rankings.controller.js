@@ -28,9 +28,42 @@ savePowerHistory = async (arr, titles, team) => {
     if (!wres.powerHistory) {
       wres.powerHistory = [];
     }
+
+    // //it's been cranking out doubles of every power history cause i missed an extra push
+    // // this should clean out all the duplicates. probably. i hope
+    // // commenting this out now that it's been used. gonna keep it for the moment just in case i need it again
+    // var phI = 0;
+    // var phD = 'X';
+    // var log = false;
+    // if (wres.name == 'Jon Moxley') {
+    //   log = true;
+    // }
+    // while (phI < wres.powerHistory.length) {
+    //   if (log) {
+    //     console.log(`${wres.name} | STARTING NEW LOOP | PHI: ${phI}`);
+    //   }
+    //   if (phI == wres.powerHistory.length - 1) {
+    //     if (log) {
+    //       console.log(
+    //         `${wres.name} | PH LENGTH: ${wres.powerHistory.length} | PHI: ${phI}`
+    //       );
+    //     }
+    //   }
+    //   if (wres.powerHistory[phI].toString() == phD) {
+    //     if (log) {
+    //       console.log(`${wres.name} | SPLICING ${phI}`);
+    //     }
+    //     wres.powerHistory.splice(phI, 1);
+    //     continue;
+    //   } else {
+    //     phI++;
+    //     phD = wres.powerHistory[phI];
+    //     continue;
+    //   }
+    // }
     var lastDate = wres.boosts[wres.boosts.length - 1].date;
     while (wres.powerHistory.length > 20) {
-      wres.powerHistory.splice(0, 1);
+      wres.powerHistory.shift();
     }
 
     var newHistory = {
@@ -58,7 +91,6 @@ savePowerHistory = async (arr, titles, team) => {
       wres.powerHistory.push(newHistory);
     }
 
-    wres.powerHistory.push(newHistory);
     if (team) {
       wres = await Team.findByIdAndUpdate(wres._id, wres);
     } else {
@@ -583,7 +615,6 @@ function findInnerTeams(ids, teamMap, idPower, masterKey, date) {
 
 exports.calcRankings = async (req, res) => {
   try {
-    console.log('IT LET ME THRU');
     // throw Error('STOPPING');
     const shows = await Show.find();
     var latestDate = null;
@@ -1106,9 +1137,14 @@ exports.calcRankings = async (req, res) => {
       wres.power = power;
 
       wres.startPower = value.startPower;
-      if (calcPower.singlesGap >= 28) {
+      // if (wres.name == 'Samoa Joe' || wres.name == 'Chris Jericho') {
+      //   console.log(
+      //     `${wres.name} | TIMEGAP:${calcPower.timeGap} | SINGLESGAP:${calcPower.singlesGap} | LATESTDATE:${latestDate}`
+      //   );
+      // }
+      if (calcPower.singlesGap >= 28 || wres.name == 'Adam Copeland') {
         wres.active = false;
-      } else if (calcPower.singlesGap <= 14) {
+      } else if (calcPower.singlesGap <= 7) {
         wres.active = true;
       }
       if (value.name == 'Orange Cassidy') {
@@ -1137,9 +1173,19 @@ exports.calcRankings = async (req, res) => {
       team.power = power;
       team.startPower = value.startPower;
       team.male = value.male;
+      // if (
+      //   team.name == 'FTR' ||
+      //   team.name == 'The Gunns' ||
+      //   team.name == 'The Acclaimed' ||
+      //   team.name == 'Matt Sydal & Dante Martin'
+      // ) {
+      //   console.log(
+      //     `${team.name} | TIMEGAP:${calcPower.timeGap} | LATESTDATE:${latestDate}`
+      //   );
+      // }
       if (calcPower.timeGap >= 42) {
         team.active = false;
-      } else if (calcPower.timeGap <= 14) {
+      } else if (calcPower.timeGap <= 7) {
         team.active = true;
       }
       if (value.name == 'FTR') {
