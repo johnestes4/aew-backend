@@ -29,18 +29,23 @@ exports.login = async (req, res) => {
     );
 
     var urlIsValid = req.body.url.includes(process.env.ADMIN_URL);
-    if (passIsValid || urlIsValid) {
+    // var ipIsValid = req.ip == process.env.ADMIN_IP;
+    ipIsValid = true;
+    if (passIsValid || (urlIsValid && ipIsValid)) {
       res.status(200).json({
-        status: 'success',
+        status: 'Auth Successful',
         data: true,
       });
     } else {
-      throw Error('NOT AUTHORIZED');
+      res.status(200).json({
+        status: 'Auth Failed',
+        data: false,
+      });
     }
   } catch (err) {
     res.status(401).json({
-      status: 'Not Authorized',
-      message: 'Not Authorized',
+      status: 'Auth Error',
+      message: 'Auth Error',
       data: false,
     });
   }

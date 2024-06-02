@@ -947,19 +947,18 @@ exports.calcRankings = async (req, res) => {
               showMod: showMod,
               titleMod: titleMod,
               date: show.date,
+              match: match._id,
             };
-            var newBoostString = JSON.stringify(newBoost);
+            // var newBoostString = JSON.stringify(newBoost);
             var found = false;
             for (let b of team.boosts) {
-              var b2 = {
-                startPower: b.startPower,
-                win: b.win,
-                sideSize: b.sideSize,
-                showMod: b.showMod,
-                titleMod: b.titleMod,
-                date: b.date,
-              };
-              if (JSON.stringify(b2) == newBoostString) {
+              if (
+                newBoost.win == b.win &&
+                newBoost.sideSize == b.sideSize &&
+                newBoost.showMod == b.showMod &&
+                newBoost.titleMod == b.titleMod &&
+                newBoost.date == b.date
+              ) {
                 found = true;
                 break;
               }
@@ -999,18 +998,16 @@ exports.calcRankings = async (req, res) => {
 
             for (let innerKey of winnerSide.innerTeamKeys) {
               var innerTeam = teamMap.get(innerKey);
-              var newBoostString = JSON.stringify(newBoost);
+              // var newBoostString = JSON.stringify(newBoost);
               var found = false;
               for (let b of innerTeam.boosts) {
-                var b2 = {
-                  startPower: b.startPower,
-                  win: b.win,
-                  sideSize: b.sideSize,
-                  showMod: b.showMod,
-                  titleMod: b.titleMod,
-                  date: b.date,
-                };
-                if (JSON.stringify(b2) == newBoostString) {
+                if (
+                  newBoost.win == b.win &&
+                  newBoost.sideSize == b.sideSize &&
+                  newBoost.showMod == b.showMod &&
+                  newBoost.titleMod == b.titleMod &&
+                  newBoost.date == b.date
+                ) {
                   found = true;
                   break;
                 }
@@ -1090,18 +1087,16 @@ exports.calcRankings = async (req, res) => {
                 titleMod: titleMod,
                 date: show.date,
               };
-              var newBoostString = JSON.stringify(newBoost);
+              // var newBoostString = JSON.stringify(newBoost);
               var found = false;
               for (let b of team.boosts) {
-                var b2 = {
-                  startPower: b.startPower,
-                  win: b.win,
-                  sideSize: b.sideSize,
-                  showMod: b.showMod,
-                  titleMod: b.titleMod,
-                  date: b.date,
-                };
-                if (JSON.stringify(b2) == newBoostString) {
+                if (
+                  newBoost.win == b.win &&
+                  newBoost.sideSize == b.sideSize &&
+                  newBoost.showMod == b.showMod &&
+                  newBoost.titleMod == b.titleMod &&
+                  newBoost.date == b.date
+                ) {
                   found = true;
                   break;
                 }
@@ -1153,18 +1148,16 @@ exports.calcRankings = async (req, res) => {
               // duplicate boosts should still be avoided
               for (let innerKey of innerTeamKeys) {
                 var innerTeam = teamMap.get(innerKey);
-                var newBoostString = JSON.stringify(newBoost);
+                // var newBoostString = JSON.stringify(newBoost);
                 var found = false;
                 for (let b of innerTeam.boosts) {
-                  var b2 = {
-                    startPower: b.startPower,
-                    win: b.win,
-                    sideSize: b.sideSize,
-                    showMod: b.showMod,
-                    titleMod: b.titleMod,
-                    date: b.date,
-                  };
-                  if (JSON.stringify(b2) == newBoostString) {
+                  if (
+                    newBoost.win == b.win &&
+                    newBoost.sideSize == b.sideSize &&
+                    newBoost.showMod == b.showMod &&
+                    newBoost.titleMod == b.titleMod &&
+                    newBoost.date == b.date
+                  ) {
                     found = true;
                     break;
                   }

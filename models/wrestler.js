@@ -47,6 +47,10 @@ const wrestlerSchema = new Schema(
         showMod: Number,
         titleMod: Number,
         date: Date,
+        match: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'match',
+        },
       },
     ],
     moves: [String],

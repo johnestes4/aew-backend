@@ -41,6 +41,8 @@ app.use(function (req, res, next) {
     'http://localhost:4200',
     'http://localhost',
     'https://aew-frontend.onrender.com',
+    'https://www.elite-rankings.com/',
+    'https://elite-rankings.com/',
   ];
   const origin = req.headers.origin;
   // console.log(origin);

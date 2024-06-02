@@ -24,6 +24,8 @@ const teamSchema = new mongoose.Schema(
     //then trios matches could also have a slight effect on the teams in them
     //ie - bullet club gold trio matches should give some amount of boost to the gunns
     //might help the issues right now in the tag division rankings
+    //
+    // i'm seeing this now for the first time in a while. i really should do this
     subTeams: [String],
     power: Number,
     startPower: Number,
@@ -48,6 +50,10 @@ const teamSchema = new mongoose.Schema(
         showMod: Number,
         titleMod: Number,
         date: Date,
+        match: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'match',
+        },
       },
     ],
   },
