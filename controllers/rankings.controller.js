@@ -345,7 +345,7 @@ function calcWrestlerPower(wrestler, currentDate) {
     var daysSince = Math.round(
       (currentDate.getTime() - boost.date.getTime()) / (1000 * 60 * 60 * 24)
     );
-    if (!team && boost.sideSize == 1) {
+    if ((!team && boost.sideSize == 1) || (team && boost.sideSize == 2)) {
       if (daysSince < singlesGap) {
         singlesGap = 0 + daysSince;
       }
@@ -361,32 +361,52 @@ function calcWrestlerPower(wrestler, currentDate) {
       modifier = 0.01;
       ppvModifier = 1.1;
     } else if (daysSince >= 112) {
-      modifier = 0.025;
+      modifier = 0.05;
       ppvModifier = 1.1;
     } else if (daysSince >= 84) {
-      modifier = 0.075;
+      modifier = 0.1;
       ppvModifier = 1.1;
     } else if (daysSince >= 56) {
-      modifier = 0.15;
+      modifier = 0.2;
       ppvModifier = 1.1;
     } else if (daysSince >= 28) {
-      modifier = 0.25;
-      ppvModifier = 1.15;
+      modifier = 0.33;
+      ppvModifier = 1.1;
     } else if (daysSince >= 14) {
-      modifier = 0.5;
-      ppvModifier = 1.15;
+      modifier = 0.67;
+      ppvModifier = 1.1;
     } else if (daysSince >= 7) {
-      modifier = 1;
-      ppvModifier = 1.25;
-      winModifier = 1.2;
+      modifier = 0.85;
+      ppvModifier = 1.15;
+      winModifier = 1.1;
       // teamModifier = 0.9;
     } else {
-      modifier = 1.5;
-      ppvModifier = 1.5;
-      winModifier = 1.25;
+      modifier = 1;
+      ppvModifier = 1.25;
+      winModifier = 1.15;
       // teamModifier = 0.75;
     }
     var finalBoost = boost.startPower * boost.showMod;
+    if (
+      finalBoost === null ||
+      finalBoost === NaN ||
+      finalBoost === Number.NEGATIVE_INFINITY
+    ) {
+      console.log('UP HIGH');
+      console.log(
+        'POWER BROKE: ' +
+          currentPower +
+          ' | ' +
+          wrestler.name +
+          ' | ' +
+          wrestler.power +
+          ' | ' +
+          currentDate
+      );
+      console.log(boost);
+      console.log(`==${finalBoost} || ${modifier}==`);
+      throw new Error('POWER BROKE: ' + wrestler.name + ' | ' + currentDate);
+    }
     if (boost.showMod > 1) {
       finalBoost = finalBoost * ppvModifier;
     }
@@ -411,8 +431,18 @@ function calcWrestlerPower(wrestler, currentDate) {
       currentPower === NaN ||
       currentPower === Number.NEGATIVE_INFINITY
     ) {
-      console.log('POWER BROKE: ' + wrestler.name + ' | ' + currentDate);
+      console.log(
+        'POWER BROKE: ' +
+          currentPower +
+          ' | ' +
+          wrestler.name +
+          ' | ' +
+          wrestler.power +
+          ' | ' +
+          currentDate
+      );
       console.log(wrestler.boosts[wrestler.boosts.length - 1]);
+      console.log(`==${finalBoost} || ${modifier}==`);
       throw new Error('POWER BROKE: ' + wrestler.name + ' | ' + currentDate);
     }
   }
@@ -526,13 +556,13 @@ function calcStreak(wres, power, currentDate) {
   //arr 1: debuffs for losing streak. arr 2: buffs for winning streak
   var buffs = [
     [-0.1, -0.15, -0.2, -0.25, -0.3, -0.35, -0.4, -0.5, -0.5],
-    [0.05, 0.06, 0.08, 0.1, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15],
+    [0.025, 0.05, 0.1, 0.12, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15],
   ];
   //arr 1: buffs for no title streak - ie all 1. arr 2: secondary titles. arr 3: world titles
   var titleBuffs = [
     [0, 0, 0, 0, 0, 0],
-    [0, 0.05, 0.07, 0.1, 0.14, 0.2],
-    [0, 0.15, 0.16, 0.18, 0.2, 0.25],
+    [0, 0.05, 0.07, 0.1, 0.14, 0.18],
+    [0, 0.1, 0.12, 0.14, 0.17, 0.2],
   ];
   var buffWeeksDecay = [1, 1, 0.9, 0.8, 0.67, 0.5, 0.33, 0.2, 0.05, 0];
   if (weeksSince > buffWeeksDecay.length - 1) {
@@ -650,11 +680,11 @@ exports.calcRankings = async (req, res) => {
         //startingPower/ 5, on a flat 5000v5000 matchup, would put 10% of each side on the line
         // reducing the kfactor divisor increases the point movement
         // a higher kfactor divisor means less power on the line
-        const kFactor = startingPower / 7;
+        const kFactor = startingPower * 0.1;
         //x-factor affects the change brought on by the difference between winner and loser
         // a higher number seems to lead to bigger changes, but not by a ton
 
-        const xFactor = startingPower / 4;
+        const xFactor = startingPower * 0.2;
 
         var titleMod = 1;
         if (match.title.length > 0) {
@@ -694,8 +724,8 @@ exports.calcRankings = async (req, res) => {
               id: w._id,
             };
             if (!w.allElite) {
-              newWres.power = 2000;
-              newWres.startPower = 2000;
+              newWres.power = 1000;
+              newWres.startPower = 1000;
             }
             wresMap.set(w.name, newWres);
           }
@@ -877,12 +907,24 @@ exports.calcRankings = async (req, res) => {
           for (let loser of loserSides) {
             loserSum += loser.avgPower;
           }
-          var expWin =
-            1 / (1 + (10 ^ (loserSum / loserSides.length / xFactor)));
           const wres = wresMap.get(w.name);
+          var expWin =
+            1 /
+            (1 +
+              (10 ^ ((loserSum / loserSides.length - wres.power) / xFactor)));
 
           var showMod = calcShowMod(show, match, true);
+          if (expWin === Number.POSITIVE_INFINITY) {
+            console.log('CORRECTING INFINITY');
+            expWin = 1.000000000001;
+          }
           var powChange = titleMod * kFactor * (1 - expWin) * showMod;
+          if (powChange === Number.NEGATIVE_INFINITY) {
+            console.log(
+              `EXPWIN: ${expWin} | LOSERSUM: ${loserSum} | LOSERSIDES: ${loserSides.length} | WRESPOWER: ${wres.power}`
+            );
+            throw Error('NEGATIVE INFINITY ERROR');
+          }
 
           if (wres.boosts === undefined) {
             wres.boosts = [];
@@ -924,8 +966,8 @@ exports.calcRankings = async (req, res) => {
             }
             if (!found) {
               team.boosts.push(newBoost);
+              teamMap.set(winnerSide.teamKey, team);
             }
-            teamMap.set(winnerSide.teamKey, team);
           } else if (match.winner.length > 1) {
             //if it's a tag match but it isn't an established team, then it's 50%
             singleChange = powChange * 0.5;
@@ -939,13 +981,6 @@ exports.calcRankings = async (req, res) => {
             date: show.date,
           };
           wres.boosts.push(newBoost);
-          if (wres.power === Number.NEGATIVE_INFINITY) {
-            console.log('---BROKE HERE---');
-            console.log(`${show.name} ---- ${show.date}`);
-            console.log(`${w.name}`);
-            console.log('WINNER');
-            throw err;
-          }
           wresMap.set(wres.name, {
             name: wres.name,
             power: wres.power,
@@ -964,7 +999,26 @@ exports.calcRankings = async (req, res) => {
 
             for (let innerKey of winnerSide.innerTeamKeys) {
               var innerTeam = teamMap.get(innerKey);
-              innerTeam.boosts.push(newBoost);
+              var newBoostString = JSON.stringify(newBoost);
+              var found = false;
+              for (let b of innerTeam.boosts) {
+                var b2 = {
+                  startPower: b.startPower,
+                  win: b.win,
+                  sideSize: b.sideSize,
+                  showMod: b.showMod,
+                  titleMod: b.titleMod,
+                  date: b.date,
+                };
+                if (JSON.stringify(b2) == newBoostString) {
+                  found = true;
+                  break;
+                }
+              }
+              if (!found) {
+                innerTeam.boosts.push(newBoost);
+                teamMap.set(innerKey, innerTeam);
+              }
             }
           }
           // console.log(`${w.name} POWER = ${w.power}`);
@@ -1007,8 +1061,15 @@ exports.calcRankings = async (req, res) => {
               opponentCount++;
             }
             var powerSum = opponentPowers.reduce((a, b) => a + b, 0);
-            var expWin = 1 / (1 + (10 ^ (powerSum / opponentCount / xFactor)));
             const wres = wresMap.get(w.name);
+            var expWin =
+              1 /
+              (1 + (10 ^ ((powerSum / opponentCount - wres.power) / xFactor)));
+            if (expWin === Number.POSITIVE_INFINITY) {
+              console.log('CORRECTING INFINITY');
+              expWin = 1.000000000001;
+            }
+
             var showMod = calcShowMod(show, match, false);
             var powChange = titleMod * kFactor * (0 - expWin) * showMod;
 
@@ -1047,8 +1108,8 @@ exports.calcRankings = async (req, res) => {
               }
               if (!found) {
                 team.boosts.push(newBoost);
+                teamMap.set(teamKey, team);
               }
-              teamMap.set(teamKey, team);
             } else if (w2.length > 1) {
               //if it's a tag match but it isn't an established team, then it's 50%
               singleChange = powChange * 0.5;
@@ -1110,8 +1171,8 @@ exports.calcRankings = async (req, res) => {
                 }
                 if (!found) {
                   innerTeam.boosts.push(newBoost);
+                  teamMap.set(innerKey, innerTeam);
                 }
-                teamMap.set(innerKey, innerTeam);
               }
             }
           }
@@ -1122,12 +1183,15 @@ exports.calcRankings = async (req, res) => {
     }
 
     //run thru wresmap, do a final calc for everyone's power
+    console.log('Final wrestler calculations...');
     for (let [key, value] of wresMap) {
       const wres = await Wrestler.findById(value.id);
       if (wres == null) {
         continue;
       }
+      value.boosts.sort((a, b) => a.date.getTime() - b.date.getTime());
       wres.boosts = value.boosts;
+
       var calcPower = calcWrestlerPower(value, latestDate);
       var power = calcStreak(
         value,
@@ -1156,12 +1220,15 @@ exports.calcRankings = async (req, res) => {
       await Wrestler.findByIdAndUpdate(value.id, wres);
     }
 
+    console.log('Final team calculations...');
     for (let [key, value] of teamMap) {
       const team = await Team.findById(value.id);
       if (team == null) {
         continue;
       }
+      value.boosts.sort((a, b) => a.date.getTime() - b.date.getTime());
       team.boosts = value.boosts;
+
       var calcPower = calcWrestlerPower(value, latestDate);
       var power = calcStreak(
         value,
@@ -1181,9 +1248,9 @@ exports.calcRankings = async (req, res) => {
       //     `${team.name} | TIMEGAP:${calcPower.timeGap} | LATESTDATE:${latestDate}`
       //   );
       // }
-      if (calcPower.timeGap >= 42) {
+      if (calcPower.singlesGap >= 56) {
         team.active = false;
-      } else if (calcPower.timeGap <= 7) {
+      } else if (calcPower.singlesGap <= 56) {
         team.active = true;
       }
       if (team.power === null) {
