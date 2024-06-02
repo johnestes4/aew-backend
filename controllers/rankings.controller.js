@@ -29,6 +29,8 @@ savePowerHistory = async (arr, titles, team) => {
       wres.powerHistory = [];
     }
 
+    wres.powerHistory.sort((a, b) => a.date.getTime() - b.date.getTime());
+
     // //it's been cranking out doubles of every power history cause i missed an extra push
     // // this should clean out all the duplicates. probably. i hope
     // // commenting this out now that it's been used. gonna keep it for the moment just in case i need it again
@@ -332,6 +334,8 @@ function calcWrestlerPower(wrestler, currentDate) {
   //this now returns an OBJECT so that it can also return the gap of time since the last match. this will be used to inactive people after 12 weeks (84 days)
   var timeGap = 999;
   var singlesGap = 999;
+  wrestler.boosts.sort((a, b) => a.date.getTime() - b.date.getTime());
+
   for (let boost of wrestler.boosts) {
     var modifier = 1;
     var ppvModifier = 1;
@@ -533,9 +537,6 @@ function calcStreak(wres, power, currentDate) {
   var buffWeeksDecay = [1, 1, 0.9, 0.8, 0.67, 0.5, 0.33, 0.2, 0.05, 0];
   if (weeksSince > buffWeeksDecay.length - 1) {
     weeksSince = buffWeeksDecay.length - 1;
-  }
-  if (wres.name == 'Yuka Sakazaki') {
-    console.log(`YUKA | ${weeksSince} |`);
   }
 
   var titleStreak = 0;
@@ -1147,9 +1148,6 @@ exports.calcRankings = async (req, res) => {
       } else if (calcPower.singlesGap <= 7) {
         wres.active = true;
       }
-      if (value.name == 'Orange Cassidy') {
-        console.log(`Orange Cassidy | ${wres.power}`);
-      }
       if (wres.power === null) {
         console.log('---BROKE HERE---');
         console.log(`${key}`);
@@ -1187,9 +1185,6 @@ exports.calcRankings = async (req, res) => {
         team.active = false;
       } else if (calcPower.timeGap <= 7) {
         team.active = true;
-      }
-      if (value.name == 'FTR') {
-        console.log(`FTR | ${team.power}`);
       }
       if (team.power === null) {
         console.log('---BROKE HERE---');
