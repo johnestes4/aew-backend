@@ -36,8 +36,12 @@ const wrestlerSchema = new Schema(
     ],
     boosts: [
       {
-        //gotta make match/wrestler proxies for here, this can't just have a reference straight to matches - matches also reference wrestlers and it creates a loop
-
+        info: {
+          string: String,
+          result: String,
+          time: String,
+          date: Date,
+        },
         startPower: Number,
         win: Number,
         //if it's a 1v1 (or the guy's generally competing alone) set this to 1
@@ -46,13 +50,30 @@ const wrestlerSchema = new Schema(
         sideSize: Number,
         showMod: Number,
         titleMod: Number,
-        date: Date,
         match: {
           type: mongoose.Schema.Types.ObjectId,
           ref: 'match',
         },
+        show: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'show',
+        },
       },
     ],
+    record: {
+      overallWins: Number,
+      overallLosses: Number,
+      overallDraws: Number,
+      singlesWins: Number,
+      singlesLosses: Number,
+      singlesDraws: Number,
+      tagWins: Number,
+      tagLosses: Number,
+      tagDraws: Number,
+      trioWins: Number,
+      trioLosses: Number,
+      trioDraws: Number,
+    },
     moves: [String],
     team: {
       type: mongoose.Schema.Types.ObjectId,

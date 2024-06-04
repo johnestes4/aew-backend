@@ -44,15 +44,24 @@ const teamSchema = new mongoose.Schema(
     },
     boosts: [
       {
+        info: {
+          string: String,
+          result: String,
+          time: String,
+          date: Date,
+        },
         startPower: Number,
         win: Number,
         sideSize: Number,
         showMod: Number,
         titleMod: Number,
-        date: Date,
         match: {
           type: mongoose.Schema.Types.ObjectId,
           ref: 'match',
+        },
+        show: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'show',
         },
       },
     ],
