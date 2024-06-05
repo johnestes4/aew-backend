@@ -74,6 +74,20 @@ const wrestlerSchema = new Schema(
       trioLosses: Number,
       trioDraws: Number,
     },
+    recordYear: {
+      overallWins: Number,
+      overallLosses: Number,
+      overallDraws: Number,
+      singlesWins: Number,
+      singlesLosses: Number,
+      singlesDraws: Number,
+      tagWins: Number,
+      tagLosses: Number,
+      tagDraws: Number,
+      trioWins: Number,
+      trioLosses: Number,
+      trioDraws: Number,
+    },
     moves: [String],
     team: {
       type: mongoose.Schema.Types.ObjectId,
@@ -96,12 +110,6 @@ const wrestlerSchema = new Schema(
     },
     alumni: Boolean,
     profileImage: String,
-    record: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'wrestlermatchproxy',
-      },
-    ],
   },
   { usePushEach: true }
 );

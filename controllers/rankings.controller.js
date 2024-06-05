@@ -6,6 +6,104 @@ const showController = require('./show.controller');
 const APIFeatures = require('../utils/apiFeatures');
 const Team = require('../models/team');
 
+exports.getRankings = async (req, res) => {
+  try {
+    const featuresM = new APIFeatures(
+      Wrestler.find({
+        male: { $eq: 'true' },
+        active: { $eq: 'true' },
+      }),
+      req.query
+    )
+      .sort('-power')
+      .limitFields(
+        'name,power,profileImage,boosts,powerHistory,record,recordYear'
+      );
+    const featuresF = new APIFeatures(
+      Wrestler.find({
+        male: { $eq: 'false' },
+        active: { $eq: 'true' },
+      }),
+      req.query
+    )
+      .sort('-power')
+      .limitFields(
+        'name,power,profileImage,boosts,powerHistory,record,recordYear'
+      );
+    const features2 = new APIFeatures(
+      Team.find({
+        male: { $eq: 'true' },
+        wrestlers: { $size: 2 },
+        active: { $eq: 'true' },
+      }),
+      req.query
+    )
+      .sort('-power')
+      .limitFields('name,power,boosts,powerHistory,record,recordYear');
+    const features3 = new APIFeatures(
+      Team.find({
+        male: { $eq: 'true' },
+        wrestlers: { $size: 3 },
+        active: { $eq: 'true' },
+      }),
+      req.query
+    )
+      .sort('-power')
+      .limitFields('name,power');
+    const featuresT = new APIFeatures(
+      Title.find({
+        promotion: { $eq: 'AEW' },
+        name: { $not: /Interim/i },
+      })
+        .populate({
+          path: 'currentChampion',
+          model: Wrestler,
+        })
+        .populate({
+          path: 'currentChampionTeam',
+          model: Team,
+        }),
+      req.query
+    ).limitFields('name,currentChampion,boosts,powerHistory,record,recordYear');
+
+    const featuresD = new APIFeatures(
+      Show.find().populate({
+        path: 'matches',
+        model: Match,
+      }),
+      req.query
+    )
+      .filter()
+      .sort('-date')
+      .paginate();
+
+    var titles = await featuresT.query;
+    const male = await featuresM.query;
+    const female = await featuresF.query;
+    const teams = await features2.query;
+    const trios = await features3.query;
+    var date = await featuresD.query;
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        male: male.slice(0, 20),
+        female: female.slice(0, 20),
+        tag: teams.slice(0, 20),
+        trios: trios.slice(0, 20),
+        titles: titles,
+        date: date[0].date,
+      },
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(404).json({
+      status: 'fail',
+      message: err,
+    });
+  }
+};
+
 savePowerHistory = async (arr, titles, team) => {
   var champIDs = new Map();
   for (let t of titles) {
@@ -63,7 +161,7 @@ savePowerHistory = async (arr, titles, team) => {
     //     continue;
     //   }
     // }
-    var lastDate = wres.boosts[wres.boosts.length - 1].date;
+    var lastDate = wres.boosts[wres.boosts.length - 1].info.date;
     while (wres.powerHistory.length > 20) {
       wres.powerHistory.shift();
     }
@@ -194,100 +292,6 @@ calcPowerHistory = async (req, res) => {
   }
 };
 
-exports.getRankings = async (req, res) => {
-  try {
-    const featuresM = new APIFeatures(
-      Wrestler.find({
-        male: { $eq: 'true' },
-        active: { $eq: 'true' },
-      }),
-      req.query
-    )
-      .sort('-power')
-      .limitFields('name,power,profileImage,boosts,powerHistory');
-    const featuresF = new APIFeatures(
-      Wrestler.find({
-        male: { $eq: 'false' },
-        active: { $eq: 'true' },
-      }),
-      req.query
-    )
-      .sort('-power')
-      .limitFields('name,power,profileImage,boosts,powerHistory');
-    const features2 = new APIFeatures(
-      Team.find({
-        male: { $eq: 'true' },
-        wrestlers: { $size: 2 },
-        active: { $eq: 'true' },
-      }),
-      req.query
-    )
-      .sort('-power')
-      .limitFields('name,power,boosts,powerHistory');
-    const features3 = new APIFeatures(
-      Team.find({
-        male: { $eq: 'true' },
-        wrestlers: { $size: 3 },
-        active: { $eq: 'true' },
-      }),
-      req.query
-    )
-      .sort('-power')
-      .limitFields('name,power');
-    const featuresT = new APIFeatures(
-      Title.find({
-        promotion: { $eq: 'AEW' },
-        name: { $not: /Interim/i },
-      })
-        .populate({
-          path: 'currentChampion',
-          model: Wrestler,
-        })
-        .populate({
-          path: 'currentChampionTeam',
-          model: Team,
-        }),
-      req.query
-    ).limitFields('name,currentChampion,boosts,powerHistory');
-
-    const featuresD = new APIFeatures(
-      Show.find().populate({
-        path: 'matches',
-        model: Match,
-      }),
-      req.query
-    )
-      .filter()
-      .sort('-date')
-      .paginate();
-
-    var titles = await featuresT.query;
-    const male = await featuresM.query;
-    const female = await featuresF.query;
-    const teams = await features2.query;
-    const trios = await features3.query;
-    var date = await featuresD.query;
-
-    res.status(200).json({
-      status: 'success',
-      data: {
-        male: male.slice(0, 20),
-        female: female.slice(0, 20),
-        tag: teams.slice(0, 20),
-        trios: trios.slice(0, 20),
-        titles: titles,
-        date: date[0].date,
-      },
-    });
-  } catch (err) {
-    console.log(err);
-    res.status(404).json({
-      status: 'fail',
-      message: err,
-    });
-  }
-};
-
 function calcShowMod(show, match, win) {
   var showMod = 1;
   if (
@@ -323,6 +327,20 @@ function calcShowMod(show, match, win) {
   return showMod;
 }
 
+function checkBoost(boost, wres) {
+  var found = false;
+  for (let b of wres.boosts) {
+    if (boost.match.toString() == b.match.toString()) {
+      found = true;
+      break;
+    }
+  }
+  if (!found) {
+    wres.boosts.push(boost);
+  }
+  return wres.boosts;
+}
+
 function calcWrestlerPower(wrestler, currentDate) {
   //IDEA: modifier based on how long boosts is, ie how many matches a person/team has had
   //weight more heavily towards people with more matches?
@@ -334,29 +352,107 @@ function calcWrestlerPower(wrestler, currentDate) {
   //this now returns an OBJECT so that it can also return the gap of time since the last match. this will be used to inactive people after 12 weeks (84 days)
   var timeGap = 999;
   var singlesGap = 999;
+  var currentYear = currentDate.getYear();
   wrestler.boosts.sort((a, b) => a.info.date.getTime() - b.info.date.getTime());
-  if (wrestler.record === undefined) {
-    wrestler.record = {
-      overallWins: 0,
-      overallLosses: 0,
-      overallDraws: 0,
-      singlesWins: 0,
-      singlesLosses: 0,
-      singlesDraws: 0,
-      tagWins: 0,
-      tagLosses: 0,
-      tagDraws: 0,
-      trioWins: 0,
-      trioLosses: 0,
-      trioDraws: 0,
-    };
-  }
+  var record = {
+    overallWins: 0,
+    overallLosses: 0,
+    overallDraws: 0,
+    singlesWins: 0,
+    singlesLosses: 0,
+    singlesDraws: 0,
+    tagWins: 0,
+    tagLosses: 0,
+    tagDraws: 0,
+    trioWins: 0,
+    trioLosses: 0,
+    trioDraws: 0,
+  };
+  var recordYear = {
+    overallWins: 0,
+    overallLosses: 0,
+    overallDraws: 0,
+    singlesWins: 0,
+    singlesLosses: 0,
+    singlesDraws: 0,
+    tagWins: 0,
+    tagLosses: 0,
+    tagDraws: 0,
+    trioWins: 0,
+    trioLosses: 0,
+    trioDraws: 0,
+  };
 
   for (let boost of wrestler.boosts) {
     var modifier = 1;
     var ppvModifier = 1;
     var teamModifier = 1;
     var winModifier = 1;
+
+    if (boost.win == 1) {
+      if (boost.sideSize == 1) {
+        record.singlesWins++;
+        if (currentYear == boost.info.date.getYear()) {
+          recordYear.singlesWins++;
+        }
+      } else if (boost.sideSize == 2) {
+        record.tagWins++;
+        if (currentYear == boost.info.date.getYear()) {
+          recordYear.tagWins++;
+        }
+      } else if (boost.sideSize == 3) {
+        record.trioWins++;
+        if (currentYear == boost.info.date.getYear()) {
+          recordYear.trioWins++;
+        }
+      }
+      record.overallWins++;
+      if (currentYear == boost.info.date.getYear()) {
+        recordYear.overallWins++;
+      }
+    } else if (boost.win == 0) {
+      if (boost.sideSize == 1) {
+        record.singlesLosses++;
+        if (currentYear == boost.info.date.getYear()) {
+          recordYear.singlesLosses++;
+        }
+      } else if (boost.sideSize == 2) {
+        record.tagLosses++;
+        if (currentYear == boost.info.date.getYear()) {
+          recordYear.tagLosses++;
+        }
+      } else if (boost.sideSize == 3) {
+        record.trioLosses++;
+        if (currentYear == boost.info.date.getYear()) {
+          recordYear.trioLosses++;
+        }
+      }
+      record.overallLosses++;
+      if (currentYear == boost.info.date.getYear()) {
+        recordYear.overallLosses++;
+      }
+    } else if (boost.win == 0.5) {
+      if (boost.sideSize == 1) {
+        record.singlesDraws++;
+        if (currentYear == boost.info.date.getYear()) {
+          recordYear.singlesDraws++;
+        }
+      } else if (boost.sideSize == 2) {
+        record.tagDraws++;
+        if (currentYear == boost.info.date.getYear()) {
+          recordYear.tagDraws++;
+        }
+      } else if (boost.sideSize == 3) {
+        record.trioDraws++;
+        if (currentYear == boost.info.date.getYear()) {
+          recordYear.trioDraws++;
+        }
+      }
+      record.overallDraws++;
+      if (currentYear == boost.info.date.getYear()) {
+        recordYear.overallDraws++;
+      }
+    }
 
     var daysSince = Math.round(
       (currentDate.getTime() - boost.info.date.getTime()) /
@@ -467,6 +563,8 @@ function calcWrestlerPower(wrestler, currentDate) {
     power: currentPower,
     timeGap: timeGap,
     singlesGap: singlesGap,
+    record: record,
+    recordYear: recordYear,
   };
   return calcReturn;
 }
@@ -647,7 +745,10 @@ function findInnerTeams(ids, teamMap, idPower, masterKey, date) {
         }
         inTeam.delete(id1);
         inTeam.delete(id2);
-        team.power = calcWrestlerPower(team, date).power;
+        var calcReturn = calcWrestlerPower(team, date).power;
+        team.power = calcReturn.power;
+        team.record = calcReturn.record;
+        team.recordYear = calcReturn.recordYear;
         inTeam.set(id1, team);
         inTeam.set(id2, team);
         teamMap.set(newKey, team);
@@ -750,7 +851,10 @@ exports.calcRankings = async (req, res) => {
           var wres = wresMap.get(w.name);
           if (wres.boosts.length > 0) {
             //if the wrestler has any boosts, then calculate their most recent power - BEFORE adding it to the average used to rate the newest boost
-            wres.power = calcWrestlerPower(wres, show.date).power;
+            var calcReturn = calcWrestlerPower(wres, show.date).power;
+            wres.power = calcReturn.power;
+            wres.record = calcReturn.record;
+            wres.recordYear = calcReturn.recordYear;
           }
           winnerSide.powers.push(wres.power);
           idPower.set(w._id, wres.power);
@@ -767,7 +871,10 @@ exports.calcRankings = async (req, res) => {
           if (team.startPower == null || team.startPower === undefined) {
             team.startPower = startingPower;
           }
-          team.power = calcWrestlerPower(team, show.date).power;
+          var calcReturn = calcWrestlerPower(team, show.date).power;
+          team.power = calcReturn.power;
+          team.record = calcReturn.record;
+          team.recordYear = calcReturn.recordYear;
           teamMap.set(winnerKey, team);
           winnerSide.teamKey = winnerKey;
           winnerSide.avgPower = team.power;
@@ -857,7 +964,10 @@ exports.calcRankings = async (req, res) => {
             newLoser.names.push(w.name);
 
             if (wres.boosts.length > 0) {
-              wres.power = calcWrestlerPower(wres, show.date).power;
+              var calcReturn = calcWrestlerPower(wres, show.date).power;
+              wres.power = calcReturn.power;
+              wres.record = calcReturn.record;
+              wres.recordYear = calcReturn.recordYear;
             }
             idPower.set(w._id, wres.power);
             newLoser.powers.push(wres.power);
@@ -875,7 +985,10 @@ exports.calcRankings = async (req, res) => {
             if (team.startPower == null || team.startPower === undefined) {
               team.startPower = startingPower;
             }
-            team.power = calcWrestlerPower(team, show.date).power;
+            var calcReturn = calcWrestlerPower(team, show.date).power;
+            team.power = calcReturn.power;
+            team.record = calcReturn.record;
+            team.recordYear = calcReturn.recordYear;
             teamMap.set(loserKey, team);
             newLoser.teamKey = loserKey;
             newLoser.avgPower = team.power;
@@ -960,7 +1073,6 @@ exports.calcRankings = async (req, res) => {
             //the team in the map is also updated
             singleChange = powChange * 0.1;
             //FIRST THINGS FIRST. we need to check if this boost already exists, so it doesn't get added for every member of the team
-
             var newBoost = {
               info: {
                 string: '',
@@ -975,18 +1087,8 @@ exports.calcRankings = async (req, res) => {
               titleMod: titleMod,
               match: match._id,
             };
-            // var newBoostString = JSON.stringify(newBoost);
-            var found = false;
-            for (let b of team.boosts) {
-              if (newBoost.match.toString() == b.match.toString()) {
-                found = true;
-                break;
-              }
-            }
-            if (!found) {
-              team.boosts.push(newBoost);
-              teamMap.set(winnerSide.teamKey, team);
-            }
+            team.boosts = checkBoost(newBoost, team);
+            teamMap.set(winnerSide.teamKey, team);
           } else if (match.winner.length > 1) {
             //if it's a tag match but it isn't an established team, then it's 50%
             singleChange = powChange * 0.5;
@@ -1118,18 +1220,8 @@ exports.calcRankings = async (req, res) => {
                 titleMod: titleMod,
                 match: match._id,
               };
-              // var newBoostString = JSON.stringify(newBoost);
-              var found = false;
-              for (let b of team.boosts) {
-                if (newBoost.match.toString() == b.match.toString()) {
-                  found = true;
-                  break;
-                }
-              }
-              if (!found) {
-                team.boosts.push(newBoost);
-                teamMap.set(teamKey, team);
-              }
+              team.boosts = checkBoost(newBoost, team);
+              teamMap.set(teamKey, team);
             } else if (w2.length > 1) {
               //if it's a tag match but it isn't an established team, then it's 50%
               singleChange = powChange * 0.5;
@@ -1220,6 +1312,8 @@ exports.calcRankings = async (req, res) => {
       ).toFixed(0);
       // if the most recent match is a loss, it needs a BIG ACROSS THE BOARD NERF.
       wres.power = power;
+      wres.record = calcPower.record;
+      wres.recordYear = calcPower.recordYear;
 
       wres.startPower = value.startPower;
       // if (wres.name == 'Samoa Joe' || wres.name == 'Chris Jericho') {
@@ -1258,6 +1352,8 @@ exports.calcRankings = async (req, res) => {
         latestDate
       ).toFixed(0);
       team.power = power;
+      team.record = calcPower.record;
+      team.recordYear = calcPower.recordYear;
       team.startPower = value.startPower;
       team.male = value.male;
       // if (
