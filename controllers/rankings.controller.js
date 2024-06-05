@@ -582,6 +582,10 @@ function calcStreak(wres, power, currentDate) {
   var matchingCount = 0;
   var singlesCount = 0;
   var titleCount = 0;
+  var firstWinBlock = 0;
+  var secondWinBlock = 0;
+  var thirdWinBlock;
+  var lossesBlock = 0;
   if (wres.wrestlers) {
     wresSize = wres.wrestlers.length;
   }
@@ -590,11 +594,10 @@ function calcStreak(wres, power, currentDate) {
   var whichTitleBuffs = 0;
 
   //it should go backwards thru the last 15 matches to find the last 5 matches of the proper size and the last 5 title matches
-  for (
-    let i = wres.boosts.length - 1;
-    i > wres.boosts.length - 21 && i >= 0;
-    i--
-  ) {
+  for (let i = wres.boosts.length - 1; i >= 0; i--) {
+    if (i < wres.boosts.length - 21 && lossesBlock >= 3) {
+      break;
+    }
     var boost = wres.boosts[i];
 
     if (
@@ -606,6 +609,19 @@ function calcStreak(wres, power, currentDate) {
       console.log(
         `${debugName} | I: ${i}/${wres.boosts.length - 1} | DATE: ${boost.info.date}`
       );
+    }
+    if (lossesBlock < 3) {
+      if (boost.win == 1) {
+        if (lossesBlock == 0) {
+          firstWinBlock++;
+        } else if (lossesBlock == 1) {
+          secondWinBlock++;
+        } else if (lossesBlock == 2) {
+          thirdWinBlock++;
+        }
+      } else if (boost.win < 1) {
+        lossesBlock++;
+      }
     }
 
     if (wresSize == boost.sideSize || (wresSize == 2 && boost.sideSize == 3)) {
@@ -711,7 +727,26 @@ function calcStreak(wres, power, currentDate) {
   }
   power = power * (1 + streakMod) * (1 + titleMod);
 
-  return power;
+  var finalStreak = lastResult == 1 ? streak : streak * -1;
+
+  var finalStreakFact = {
+    wins: 0,
+    overall: 0,
+  };
+
+  if (thirdWinBlock > (firstWinBlock + secondWinBlock) * 0.6) {
+    finalStreakFact.wins = firstWinBlock + secondWinBlock + thirdWinBlock;
+    finalStreakFact.overall = finalStreakFact.wins + 2;
+  } else {
+    finalStreakFact.wins = firstWinBlock + secondWinBlock;
+    finalStreakFact.overall = finalStreakFact.wins + 1;
+  }
+
+  return {
+    power: power,
+    streak: finalStreak,
+    streakFact: finalStreakFact,
+  };
 }
 
 function findInnerTeams(ids, teamMap, idPower, masterKey, date) {
@@ -1305,13 +1340,15 @@ exports.calcRankings = async (req, res) => {
       wres.boosts = value.boosts;
 
       var calcPower = calcWrestlerPower(value, latestDate);
-      var power = calcStreak(
+      var streakResults = calcStreak(
         value,
         calcPower.power.toFixed(0),
         latestDate
-      ).toFixed(0);
+      );
       // if the most recent match is a loss, it needs a BIG ACROSS THE BOARD NERF.
-      wres.power = power;
+      wres.power = streakResults.power.toFixed(0);
+      wres.streak = streakResults.streak;
+      wres.streakFact = streakResults.streakFact;
       wres.record = calcPower.record;
       wres.recordYear = calcPower.recordYear;
 
@@ -1346,12 +1383,15 @@ exports.calcRankings = async (req, res) => {
       team.boosts = value.boosts;
 
       var calcPower = calcWrestlerPower(value, latestDate);
-      var power = calcStreak(
+
+      var streakResults = calcStreak(
         value,
         calcPower.power.toFixed(0),
         latestDate
-      ).toFixed(0);
-      team.power = power;
+      );
+      team.power = streakResults.power.toFixed(0);
+      team.streak = streakResults.streak;
+      team.streakFact = streakResults.streakFact;
       team.record = calcPower.record;
       team.recordYear = calcPower.recordYear;
       team.startPower = value.startPower;

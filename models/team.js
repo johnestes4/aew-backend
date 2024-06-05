@@ -93,6 +93,11 @@ const teamSchema = new mongoose.Schema(
       trioLosses: Number,
       trioDraws: Number,
     },
+    streak: Number,
+    streakFact: {
+      wins: Number,
+      overall: Number,
+    },
   },
   { usePushEach: true }
 );

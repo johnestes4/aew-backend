@@ -60,6 +60,28 @@ const wrestlerSchema = new Schema(
         },
       },
     ],
+    moves: [String],
+    team: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'team',
+    },
+    faction: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'team',
+    },
+    titles: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'titlereign',
+      },
+    ],
+    bio: String,
+    active: {
+      type: Boolean,
+      default: true,
+    },
+    alumni: Boolean,
+    profileImage: String,
     record: {
       overallWins: Number,
       overallLosses: Number,
@@ -88,28 +110,11 @@ const wrestlerSchema = new Schema(
       trioLosses: Number,
       trioDraws: Number,
     },
-    moves: [String],
-    team: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'team',
+    streak: Number,
+    streakFact: {
+      wins: Number,
+      overall: Number,
     },
-    faction: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'team',
-    },
-    titles: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'titlereign',
-      },
-    ],
-    bio: String,
-    active: {
-      type: Boolean,
-      default: true,
-    },
-    alumni: Boolean,
-    profileImage: String,
   },
   { usePushEach: true }
 );
