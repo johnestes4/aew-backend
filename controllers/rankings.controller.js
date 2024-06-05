@@ -17,7 +17,7 @@ exports.getRankings = async (req, res) => {
     )
       .sort('-power')
       .limitFields(
-        'name,power,profileImage,boosts,powerHistory,record,recordYear'
+        'name,power,profileImage,boosts,powerHistory,record,recordYear,streak,streakFact'
       );
     const featuresF = new APIFeatures(
       Wrestler.find({
@@ -28,7 +28,7 @@ exports.getRankings = async (req, res) => {
     )
       .sort('-power')
       .limitFields(
-        'name,power,profileImage,boosts,powerHistory,record,recordYear'
+        'name,power,profileImage,boosts,powerHistory,record,recordYear,streak,streakFact'
       );
     const features2 = new APIFeatures(
       Team.find({
@@ -39,7 +39,9 @@ exports.getRankings = async (req, res) => {
       req.query
     )
       .sort('-power')
-      .limitFields('name,power,boosts,powerHistory,record,recordYear');
+      .limitFields(
+        'name,power,boosts,powerHistory,record,recordYear,streak,streakFact'
+      );
     const features3 = new APIFeatures(
       Team.find({
         male: { $eq: 'true' },
@@ -49,7 +51,9 @@ exports.getRankings = async (req, res) => {
       req.query
     )
       .sort('-power')
-      .limitFields('name,power');
+      .limitFields(
+        'name,power,boosts,powerHistory,record,recordYear,streak,streakFact'
+      );
     const featuresT = new APIFeatures(
       Title.find({
         promotion: { $eq: 'AEW' },
@@ -64,7 +68,7 @@ exports.getRankings = async (req, res) => {
           model: Team,
         }),
       req.query
-    ).limitFields('name,currentChampion,boosts,powerHistory,record,recordYear');
+    ).limitFields('name,currentChampion,boosts,powerHistory');
 
     const featuresD = new APIFeatures(
       Show.find().populate({
@@ -584,7 +588,8 @@ function calcStreak(wres, power, currentDate) {
   var titleCount = 0;
   var firstWinBlock = 0;
   var secondWinBlock = 0;
-  var thirdWinBlock;
+  var thirdWinBlock = 0;
+  var anyTitles = false;
   var lossesBlock = 0;
   if (wres.wrestlers) {
     wresSize = wres.wrestlers.length;
@@ -595,7 +600,7 @@ function calcStreak(wres, power, currentDate) {
 
   //it should go backwards thru the last 15 matches to find the last 5 matches of the proper size and the last 5 title matches
   for (let i = wres.boosts.length - 1; i >= 0; i--) {
-    if (i < wres.boosts.length - 21 && lossesBlock >= 3) {
+    if ((!anyTitles || titleStreakStop) && streakStop && lossesBlock >= 3) {
       break;
     }
     var boost = wres.boosts[i];
@@ -651,6 +656,7 @@ function calcStreak(wres, power, currentDate) {
         }
       }
       if (boost.titleMod > 1 && titleCount < 5) {
+        anyTitles = true;
         // it goes BACKWARDS, not FORWARDS, so it has to stop the moment the win result stops matching
         if (lastTitleResult !== null && lastTitleResult !== boost.win) {
           titleStreakStop = true;
@@ -722,7 +728,7 @@ function calcStreak(wres, power, currentDate) {
   if (lastTitleResult == 0) {
     titleMod = titleMod * -1;
   }
-  if ((lastResult = 1)) {
+  if (lastResult == 1) {
     streakMod = streakMod * buffWeeksDecay[weeksSince];
   }
   power = power * (1 + streakMod) * (1 + titleMod);
@@ -734,7 +740,10 @@ function calcStreak(wres, power, currentDate) {
     overall: 0,
   };
 
-  if (thirdWinBlock > (firstWinBlock + secondWinBlock) * 0.6) {
+  if (
+    thirdWinBlock > (firstWinBlock + secondWinBlock) * 0.5 ||
+    (firstWinBlock + secondWinBlock < 5 && thirdWinBlock > 2)
+  ) {
     finalStreakFact.wins = firstWinBlock + secondWinBlock + thirdWinBlock;
     finalStreakFact.overall = finalStreakFact.wins + 2;
   } else {
