@@ -392,6 +392,7 @@ function calcWrestlerPower(wrestler, currentDate) {
     var ppvModifier = 1;
     var teamModifier = 1;
     var winModifier = 1;
+    var lossModifier = 1;
 
     if (boost.win == 1) {
       if (boost.sideSize == 1) {
@@ -472,10 +473,10 @@ function calcWrestlerPower(wrestler, currentDate) {
     }
 
     if (daysSince >= 365) {
-      modifier = 0.01;
+      modifier = 0.015;
       ppvModifier = 1.1;
     } else if (daysSince >= 140) {
-      modifier = 0.01;
+      modifier = 0.02;
       ppvModifier = 1.1;
     } else if (daysSince >= 112) {
       modifier = 0.05;
@@ -495,11 +496,13 @@ function calcWrestlerPower(wrestler, currentDate) {
     } else if (daysSince >= 7) {
       modifier = 0.85;
       ppvModifier = 1.15;
+      lossModifier = 1.1;
       winModifier = 1.1;
       // teamModifier = 0.9;
     } else {
       modifier = 1;
       ppvModifier = 1.25;
+      lossModifier = 1.15;
       winModifier = 1.15;
       // teamModifier = 0.75;
     }
@@ -692,8 +695,8 @@ function calcStreak(wres, power, currentDate) {
   }
   //arr 1: debuffs for losing streak. arr 2: buffs for winning streak
   var buffs = [
-    [-0.1, -0.15, -0.2, -0.25, -0.3, -0.35, -0.4, -0.5, -0.5],
-    [0.025, 0.05, 0.1, 0.12, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15],
+    [-0.15, -0.2, -0.25, -0.3, -0.35, -0.4, -0.45, -0.5, -0.5],
+    [0.025, 0.05, 0.075, 0.1, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15],
   ];
   //arr 1: buffs for no title streak - ie all 1. arr 2: secondary titles. arr 3: world titles
   var titleBuffs = [
