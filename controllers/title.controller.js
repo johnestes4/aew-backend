@@ -44,7 +44,10 @@ exports.getAllTitles = async (req, res) => {
 
 exports.getTitle = async (req, res) => {
   try {
-    const title = await Title.findById(req.params.id);
+    const title = await Title.findById(req.params.id).populate({
+      path: 'reigns',
+      model: TitleReign,
+    });
 
     res.status(200).json({
       status: 'success',

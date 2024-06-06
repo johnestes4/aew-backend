@@ -18,6 +18,10 @@ const wrestlerSchema = new Schema(
       type: Boolean,
       default: false,
     },
+    forbiddenDoor: {
+      type: Boolean,
+      default: false,
+    },
     male: {
       type: Boolean,
       default: true,

@@ -4,6 +4,8 @@ const Show = require('../models/show');
 const Title = require('../models/title');
 const showController = require('./show.controller');
 const APIFeatures = require('../utils/apiFeatures');
+const TitleReign = require('../models/titleReign');
+
 const Team = require('../models/team');
 
 exports.getRankings = async (req, res) => {
@@ -66,9 +68,13 @@ exports.getRankings = async (req, res) => {
         .populate({
           path: 'currentChampionTeam',
           model: Team,
+        })
+        .populate({
+          path: 'reigns',
+          model: TitleReign,
         }),
       req.query
-    ).limitFields('name,currentChampion,boosts,powerHistory');
+    ).limitFields('name,currentChampion,boosts,powerHistory,reigns');
 
     const featuresD = new APIFeatures(
       Show.find().populate({
@@ -888,7 +894,11 @@ exports.calcRankings = async (req, res) => {
               boosts: [],
               id: w._id,
             };
-            if (!w.allElite) {
+
+            if (w.forbiddenDoor) {
+              newWres.power = 3000;
+              newWres.startPower = 3000;
+            } else if (!w.allElite) {
               newWres.power = 1000;
               newWres.startPower = 1000;
             }
