@@ -613,6 +613,9 @@ function calcStreak(wres, power, currentDate) {
       break;
     }
     var boost = wres.boosts[i];
+    if (boost.info.date.getYear() < currentDate.getYear()) {
+      streakStop = true;
+    }
 
     if (
       debugName &&
@@ -701,7 +704,6 @@ function calcStreak(wres, power, currentDate) {
   }
   //arr 1: debuffs for losing streak. arr 2: buffs for winning streak
   var buffs = [
-    // [-0.15, -0.25, -0.3, -0.35, -0.4, -0.45, -0.5, -0.5, -0.5],
     [-0.1, -0.2, -0.3, -0.4, -0.5, -0.5, -0.5, -0.5, -0.5],
     [0.05, 0.15, 0.2, 0.25, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3],
   ];
@@ -731,7 +733,7 @@ function calcStreak(wres, power, currentDate) {
 
   //if it gets here without any sort of streak, just gotta ensure it doesn't have a negative number and that lastresult isn't null
   var streakMod = 0;
-  if (lastResult !== null) {
+  if (lastResult == 0 || lastResult == 1) {
     streakMod = buffs[lastResult][streak - 1];
   }
   var titleMod = titleBuffs[whichTitleBuffs][titleStreak];
@@ -742,6 +744,29 @@ function calcStreak(wres, power, currentDate) {
     streakMod = streakMod * buffWeeksDecay[weeksSince];
   }
   power = power * (1 + streakMod) * (1 + titleMod);
+
+  if (wres.recordYear.overallWins == 0) {
+    power = power * (1 - 0.1 * wres.recordYear.overallLosses);
+    if (wres.forbiddenDoor) {
+      power = power * 0.9;
+    }
+  } else if (wres.recordYear.overallWins < 3) {
+    power = power * (1 - 0.05 * (4 - wres.recordYear.overallWins));
+  } else if (wres.recordYear.overallWins < wres.recordYear.overallLosses) {
+    power =
+      power *
+      (1 -
+        0.02 * (wres.recordYear.overallLosses - wres.recordYear.overallWins));
+  } else if (wres.recordYear.overallWins > wres.recordYear.overallLosses) {
+    if (wres.recordYear.overallWins - wres.recordYear.overallLosses > 5) {
+      power = power * 1.05;
+    } else {
+      power =
+        power *
+        (1 +
+          0.01 * (wres.recordYear.overallWins - wres.recordYear.overallLosses));
+    }
+  }
 
   var finalStreak = lastResult == 1 ? streak : streak * -1;
 
@@ -1376,8 +1401,11 @@ exports.calcRankings = async (req, res) => {
       wres.boosts = value.boosts;
 
       var calcPower = calcWrestlerPower(value, latestDate);
+      wres.record = calcPower.record;
+      wres.recordYear = calcPower.recordYear;
+      wres.startPower = value.startPower;
       var streakResults = calcStreak(
-        value,
+        wres,
         Math.round(calcPower.power),
         latestDate
       );
@@ -1385,10 +1413,7 @@ exports.calcRankings = async (req, res) => {
       wres.power = Math.round(streakResults.power);
       wres.streak = streakResults.streak;
       wres.streakFact = streakResults.streakFact;
-      wres.record = calcPower.record;
-      wres.recordYear = calcPower.recordYear;
 
-      wres.startPower = value.startPower;
       // if (wres.name == 'Samoa Joe' || wres.name == 'Chris Jericho') {
       //   console.log(
       //     `${wres.name} | TIMEGAP:${calcPower.timeGap} | SINGLESGAP:${calcPower.singlesGap} | LATESTDATE:${latestDate}`
@@ -1419,18 +1444,18 @@ exports.calcRankings = async (req, res) => {
       team.boosts = value.boosts;
 
       var calcPower = calcWrestlerPower(value, latestDate);
+      team.record = calcPower.record;
+      team.recordYear = calcPower.recordYear;
+      team.startPower = value.startPower;
 
       var streakResults = calcStreak(
-        value,
+        team,
         Math.round(calcPower.power),
         latestDate
       );
       team.power = Math.round(streakResults.power);
       team.streak = streakResults.streak;
       team.streakFact = streakResults.streakFact;
-      team.record = calcPower.record;
-      team.recordYear = calcPower.recordYear;
-      team.startPower = value.startPower;
       team.male = value.male;
       // if (
       //   team.name == 'FTR' ||

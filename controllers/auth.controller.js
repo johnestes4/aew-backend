@@ -10,7 +10,10 @@ exports.auth = (req, res, next) => {
       bcrypt.hashSync(process.env.SECRET_PASS, 8)
     );
   }
-  var urlIsValid = req.body.url.includes(process.env.ADMIN_URL);
+  var urlIsValid = false;
+  if (req.body.url) {
+    urlIsValid = req.body.url.includes(process.env.ADMIN_URL);
+  }
   if (passIsValid || urlIsValid) {
     next();
   } else {
