@@ -31,5 +31,8 @@ router
 router
   .route('/attachtitleteams')
   .post(authController.auth, utilityController.attachTitleTeams);
+router
+  .route('/teamstartpower')
+  .post(authController.auth, utilityController.teamPower);
 
 module.exports = router;

@@ -47,6 +47,7 @@ const wrestlerSchema = new Schema(
           date: Date,
         },
         startPower: Number,
+        currentPower: Number,
         win: Number,
         //if it's a 1v1 (or the guy's generally competing alone) set this to 1
         //if it's a 2v2 tag, set to 2

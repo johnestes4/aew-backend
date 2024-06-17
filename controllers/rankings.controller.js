@@ -318,9 +318,9 @@ function calcShowMod(show, match, win) {
     showMod = 0.25;
   } else if (
     (!win && match.matchType.toLowerCase().includes('dark')) ||
-    match.preshow
+    (!win && match.preshow && !show.ppv)
   ) {
-    showMod = 2.5;
+    showMod = 1.5;
   } else if (show.ppv) {
     if (win && match.mainEvent) {
       showMod = 1.5;
@@ -359,10 +359,20 @@ function calcWrestlerPower(wrestler, currentDate) {
 
   var team = wrestler.wrestlers !== undefined;
   var currentPower = 0 + wrestler.startPower;
+  var lastWinDate;
+  if (wrestler.boosts.length > 0) {
+    for (let i = wrestler.boosts.length - 1; i > 0; i--) {
+      if (wrestler.boosts[i].win == 1) {
+        lastWinDate = wrestler.boosts[i].info.date;
+        break;
+      }
+    }
+  }
   //this now returns an OBJECT so that it can also return the gap of time since the last match. this will be used to inactive people after 12 weeks (84 days)
   var timeGap = 999;
   var singlesGap = 999;
   var currentYear = currentDate.getYear();
+  var cashIn = false;
   wrestler.boosts.sort((a, b) => a.info.date.getTime() - b.info.date.getTime());
   var record = {
     overallWins: 0,
@@ -392,6 +402,14 @@ function calcWrestlerPower(wrestler, currentDate) {
     trioLosses: 0,
     trioDraws: 0,
   };
+  if (wrestler.boosts.length == 0) {
+    cashIn = true;
+  } else if (
+    // if last match is win AND last match is on most recent show, it's cashin time
+    wrestler.boosts[wrestler.boosts.length - 1].win == 1
+  ) {
+    cashIn = true;
+  }
 
   for (let boost of wrestler.boosts) {
     var modifier = 1;
@@ -477,6 +495,25 @@ function calcWrestlerPower(wrestler, currentDate) {
     if (boost.showMod !== 0.25 && boost.showMod !== 2.5) {
       timeGap = 0 + daysSince;
     }
+    // IF IT'S A LOSS
+    if (boost.win !== 1) {
+      // if it's cashin time - most recent match is a win - we calc decay like normal
+
+      // if it's not cashin time and it's a loss, we just use the most recently calculated decay - this keeps losses from decaying until a win happens
+      if (!cashIn) {
+        currentPower += boost.currentPower;
+        continue;
+      } else if (lastWinDate !== undefined) {
+        // if it's cashin time, we calc the decay - but we do it based on when that most recent win took place.
+        // this way you don't get extra points if your last match was a win three weeks ago. decay ONLY HAPPENS on THE SAME SHOW
+        if (lastWinDate.getTime() < currentDate.getTime()) {
+          daysSince = Math.round(
+            (lastWinDate.getTime() - boost.info.date.getTime()) /
+              (1000 * 60 * 60 * 24)
+          );
+        }
+      }
+    }
 
     if (daysSince >= 365) {
       modifier = 0.015;
@@ -551,6 +588,7 @@ function calcWrestlerPower(wrestler, currentDate) {
       }
     }
     finalBoost = finalBoost * modifier;
+    boost.currentPower = finalBoost;
     currentPower += finalBoost;
     if (
       currentPower === null ||
@@ -574,6 +612,7 @@ function calcWrestlerPower(wrestler, currentDate) {
   }
   calcReturn = {
     power: currentPower,
+    boosts: wrestler.boosts,
     timeGap: timeGap,
     singlesGap: singlesGap,
     record: record,
@@ -825,7 +864,8 @@ function findInnerTeams(ids, teamMap, idPower, masterKey, date) {
         inTeam.delete(id1);
         inTeam.delete(id2);
         var calcReturn = calcWrestlerPower(team, date);
-        team.power = calcReturn.power;
+        team.boosts = calcReturn.boosts;
+        team.power = Math.round(calcReturn.power);
         team.record = calcReturn.record;
         team.recordYear = calcReturn.recordYear;
         inTeam.set(id1, team);
@@ -857,7 +897,6 @@ exports.calcRankings = async (req, res) => {
     var teamMap = new Map();
     for (let team of teams) {
       //reset the boosts on the teams every time - since we're pulling from the DB for these, gotta make sure the slate is clean
-      team.startPower = 5000;
       team.boosts = [];
       teamMap.set(JSON.stringify(team.wrestlers.sort()), team);
     }
@@ -940,6 +979,7 @@ exports.calcRankings = async (req, res) => {
           if (wres.boosts.length > 0) {
             //if the wrestler has any boosts, then calculate their most recent power - BEFORE adding it to the average used to rate the newest boost
             var calcReturn = calcWrestlerPower(wres, show.date);
+            wres.boosts = calcReturn.boosts;
             wres.power = Math.round(calcReturn.power);
             wres.record = calcReturn.record;
             wres.recordYear = calcReturn.recordYear;
@@ -962,6 +1002,7 @@ exports.calcRankings = async (req, res) => {
             team.startPower = startingPower;
           }
           var calcReturn = calcWrestlerPower(team, show.date);
+          team.boosts = calcReturn.boosts;
           team.power = Math.round(calcReturn.power);
           team.record = calcReturn.record;
           team.recordYear = calcReturn.recordYear;
@@ -1055,6 +1096,7 @@ exports.calcRankings = async (req, res) => {
 
             if (wres.boosts.length > 0) {
               var calcReturn = calcWrestlerPower(wres, show.date);
+              wres.boosts = calcReturn.boosts;
               wres.power = calcReturn.power;
               wres.record = calcReturn.record;
               wres.recordYear = calcReturn.recordYear;
@@ -1079,6 +1121,7 @@ exports.calcRankings = async (req, res) => {
               team.startPower = startingPower;
             }
             var calcReturn = calcWrestlerPower(team, show.date);
+            team.boosts = calcReturn.boosts;
             team.power = Math.round(calcReturn.power);
             team.record = calcReturn.record;
             team.recordYear = calcReturn.recordYear;
@@ -1180,6 +1223,7 @@ exports.calcRankings = async (req, res) => {
                 date: show.date,
               },
               startPower: powChange,
+              currentPower: powChange,
               win: actualWin,
               sideSize: match.winner.length,
               showMod: showMod,
@@ -1200,6 +1244,7 @@ exports.calcRankings = async (req, res) => {
               date: show.date,
             },
             startPower: singleChange,
+            currentPower: singleChange,
             win: actualWin,
             sideSize: match.winner.length,
             showMod: showMod,
@@ -1311,6 +1356,7 @@ exports.calcRankings = async (req, res) => {
                   date: show.date,
                 },
                 startPower: powChange,
+                currentPower: powChange,
                 win: actualWin,
                 sideSize: w2.length,
                 showMod: showMod,
@@ -1333,6 +1379,7 @@ exports.calcRankings = async (req, res) => {
                 date: show.date,
               },
               startPower: singleChange,
+              currentPower: singleChange,
               win: actualWin,
               sideSize: w2.length,
               showMod: showMod,
@@ -1401,6 +1448,7 @@ exports.calcRankings = async (req, res) => {
       wres.boosts = value.boosts;
 
       var calcPower = calcWrestlerPower(value, latestDate);
+      wres.boosts = calcPower.boosts;
       wres.record = calcPower.record;
       wres.recordYear = calcPower.recordYear;
       wres.startPower = value.startPower;
@@ -1444,6 +1492,7 @@ exports.calcRankings = async (req, res) => {
       team.boosts = value.boosts;
 
       var calcPower = calcWrestlerPower(value, latestDate);
+      team.boosts = calcPower.boosts;
       team.record = calcPower.record;
       team.recordYear = calcPower.recordYear;
       team.startPower = value.startPower;

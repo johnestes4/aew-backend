@@ -273,7 +273,7 @@ exports.scanTeams = async (req, res) => {
             name: teamName,
             wrestlers: team.members,
             comboID: comboID,
-            power: 500,
+            power: 5000,
             faction: false,
             active: true,
             boosts: [],
@@ -281,6 +281,36 @@ exports.scanTeams = async (req, res) => {
           await Team.create(newTeam);
         }
       }
+    }
+    res.status(201).json({
+      status: 'success',
+      data: 'Teams created',
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(404).json({
+      status: 'fail',
+      message: err,
+    });
+  }
+};
+
+exports.teamPower = async (req, res) => {
+  try {
+    const features = new APIFeatures(Team.find(), req.query);
+    // await executes the query and returns all the documents
+    const teams = await Team.find().populate({
+      path: 'wrestlers',
+      model: Wrestler,
+    });
+
+    for (let team of teams) {
+      var totalPower = 0;
+      for (let wres of team.wrestlers) {
+        totalPower += wres.startPower;
+      }
+      team.startPower = totalPower / team.wrestlers.length;
+      await team.save();
     }
     res.status(201).json({
       status: 'success',
