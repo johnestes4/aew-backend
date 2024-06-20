@@ -487,7 +487,10 @@ function calcWrestlerPower(wrestler, currentDate) {
       (currentDate.getTime() - boost.info.date.getTime()) /
         (1000 * 60 * 60 * 24)
     );
-    if ((!team && boost.sideSize == 1) || (team && boost.sideSize == 2)) {
+    if (
+      (!team && boost.sideSize == 1) ||
+      (team && boost.sideSize == wrestler.wrestlers.length)
+    ) {
       if (daysSince < singlesGap) {
         singlesGap = 0 + daysSince;
       }
@@ -622,6 +625,7 @@ function calcWrestlerPower(wrestler, currentDate) {
 function calcStreak(wres, power, currentDate) {
   var debugName = '';
   var streak = 0;
+  var divisionStreak = 0;
   var worldStreak = 0;
   var secondaryStreak = 0;
   var lastResult = null;
@@ -678,71 +682,73 @@ function calcStreak(wres, power, currentDate) {
       }
     }
 
-    if (wresSize == boost.sideSize || (wresSize == 2 && boost.sideSize == 3)) {
-      if (boost.showMod == 0.25 || boost.showMod == 2.5) {
-        continue;
-      }
-      var newGap = Math.round(
-        (currentDate.getTime() - boost.info.date.getTime()) /
-          (1000 * 60 * 60 * 24) /
-          7
-      );
-      if (newGap < weeksSince) {
-        weeksSince = newGap;
-      }
+    if (boost.showMod == 0.25 || boost.showMod == 2.5) {
+      continue;
+    }
+    var newGap = Math.round(
+      (currentDate.getTime() - boost.info.date.getTime()) /
+        (1000 * 60 * 60 * 24) /
+        7
+    );
+    if (newGap < weeksSince) {
+      weeksSince = newGap;
+    }
 
-      matchingCount++;
+    matchingCount++;
 
-      if (lastResult !== null && boost.win !== lastResult) {
-        streakStop = true;
-      }
+    if (lastResult !== null && boost.win !== lastResult) {
+      streakStop = true;
+    }
 
-      if (!streakStop) {
-        if (singlesCount < 10) {
-          lastResult = boost.win;
-          singlesCount++;
-          streak++;
+    if (!streakStop) {
+      if (singlesCount < 10) {
+        lastResult = boost.win;
+        singlesCount++;
+        streak++;
+        if (wresSize == boost.sideSize) {
+          divisionStreak++;
         }
-      }
-      if (boost.titleMod > 1 && titleCount < 5) {
-        anyTitles = true;
-        // it goes BACKWARDS, not FORWARDS, so it has to stop the moment the win result stops matching
-        if (lastTitleResult !== null && lastTitleResult !== boost.win) {
-          titleStreakStop = true;
-        }
-        if (titleStreakStop) {
-          continue;
-        }
-        lastTitleResult = boost.win;
-        secondaryStreak = 0;
-        worldStreak = 0;
-        if (boost.titleMod == 1.25) {
-          if (secondaryStreak < 5) {
-            secondaryStreak++;
-          }
-          whichTitleBuffs = 1;
-        } else if (boost.titleMod == 1.5) {
-          if (worldStreak < 5) {
-            worldStreak++;
-          }
-          whichTitleBuffs = 2;
-        }
-        titleCount++;
-      }
-      if (wres.name.toLowerCase() == debugName) {
-        console.log(
-          `${debugName} | ${streak} | I: ${i}/${wres.boosts.length - 1} | LR: ${lastResult} | WIN: ${boost.win} | DATE: ${boost.info.date} | TITLE: ${boost.titleMod} | STARTPOWER: ${boost.startPower}`
-        );
       }
     }
-    if ((singlesCount >= 5 && titleCount >= 5) || matchingCount >= 15) {
+    if (boost.titleMod > 1 && titleCount < 5) {
+      anyTitles = true;
+      // it goes BACKWARDS, not FORWARDS, so it has to stop the moment the win result stops matching
+      if (lastTitleResult !== null && lastTitleResult !== boost.win) {
+        titleStreakStop = true;
+      }
+      if (titleStreakStop) {
+        continue;
+      }
+      lastTitleResult = boost.win;
+      secondaryStreak = 0;
+      worldStreak = 0;
+      if (boost.titleMod == 1.25) {
+        if (secondaryStreak < 5) {
+          secondaryStreak++;
+        }
+        whichTitleBuffs = 1;
+      } else if (boost.titleMod == 1.5) {
+        if (worldStreak < 5) {
+          worldStreak++;
+        }
+        whichTitleBuffs = 2;
+      }
+      titleCount++;
+    }
+    if (wres.name.toLowerCase() == debugName) {
+      console.log(
+        `${debugName} | ${streak} | I: ${i}/${wres.boosts.length - 1} | LR: ${lastResult} | WIN: ${boost.win} | DATE: ${boost.info.date} | TITLE: ${boost.titleMod} | STARTPOWER: ${boost.startPower}`
+      );
+    }
+
+    if ((singlesCount >= 10 && titleCount >= 5) || matchingCount >= 15) {
       break;
     }
   }
   //arr 1: debuffs for losing streak. arr 2: buffs for winning streak
   var buffs = [
-    [-0.1, -0.2, -0.3, -0.4, -0.5, -0.5, -0.5, -0.5, -0.5],
-    [0.05, 0.15, 0.2, 0.25, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3],
+    [-0.1, -0.2, -0.3, -0.4, -0.5, -0.5, -0.5, -0.5, -0.5, -0.5, -0.5],
+    [0.05, 0.15, 0.2, 0.25, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3],
   ];
   //arr 1: buffs for no title streak - ie all 1. arr 2: secondary titles. arr 3: world titles
   var titleBuffs = [
@@ -771,7 +777,7 @@ function calcStreak(wres, power, currentDate) {
   //if it gets here without any sort of streak, just gotta ensure it doesn't have a negative number and that lastresult isn't null
   var streakMod = 0;
   if (lastResult == 0 || lastResult == 1) {
-    streakMod = buffs[lastResult][streak - 1];
+    streakMod = buffs[lastResult][divisionStreak - 1];
   }
   var titleMod = titleBuffs[whichTitleBuffs][titleStreak];
   if (lastTitleResult == 0) {
@@ -1318,7 +1324,7 @@ exports.calcRankings = async (req, res) => {
             // if the team is an existing trio, it'll cut the value granted to the inner team
             // this should prevent inner team power from growing out of control
             if (team) {
-              newBoost.startPower = newBoost.startPower * 0.1;
+              newBoost.startPower = newBoost.startPower * 0.2;
             } else {
               newBoost.startPower = newBoost.startPower * 0.5;
             }
@@ -1527,7 +1533,7 @@ exports.calcRankings = async (req, res) => {
       //     `${wres.name} | TIMEGAP:${calcPower.timeGap} | SINGLESGAP:${calcPower.singlesGap} | LATESTDATE:${latestDate}`
       //   );
       // }
-      if (calcPower.singlesGap >= 28 || wres.name == 'Adam Copeland') {
+      if (calcPower.singlesGap >= 28) {
         wres.active = false;
       } else if (calcPower.singlesGap <= 7) {
         wres.active = true;
