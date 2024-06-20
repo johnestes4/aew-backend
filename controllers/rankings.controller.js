@@ -358,6 +358,7 @@ function calcWrestlerPower(wrestler, currentDate) {
   //maybe not. i think orange/trent is an outlier
 
   var team = wrestler.wrestlers !== undefined;
+  wrestler.boosts.sort((a, b) => a.info.date.getTime() - b.info.date.getTime());
   var currentPower = 0 + wrestler.startPower;
   var lastWinDate;
   if (wrestler.boosts.length > 0) {
@@ -373,7 +374,6 @@ function calcWrestlerPower(wrestler, currentDate) {
   var singlesGap = 999;
   var currentYear = currentDate.getYear();
   var cashIn = false;
-  wrestler.boosts.sort((a, b) => a.info.date.getTime() - b.info.date.getTime());
   var record = {
     overallWins: 0,
     overallLosses: 0,
@@ -497,16 +497,14 @@ function calcWrestlerPower(wrestler, currentDate) {
     }
     // IF IT'S A LOSS
     if (boost.win !== 1) {
-      // if it's cashin time - most recent match is a win - we calc decay like normal
-
-      // if it's not cashin time and it's a loss, we just use the most recently calculated decay - this keeps losses from decaying until a win happens
       if (!cashIn) {
         currentPower += boost.currentPower;
         continue;
-      } else if (lastWinDate !== undefined) {
+      }
+      if (lastWinDate !== undefined) {
         // if it's cashin time, we calc the decay - but we do it based on when that most recent win took place.
         // this way you don't get extra points if your last match was a win three weeks ago. decay ONLY HAPPENS on THE SAME SHOW
-        if (lastWinDate.getTime() < currentDate.getTime()) {
+        if (boost.info.date.getTime() < lastWinDate.getTime()) {
           daysSince = Math.round(
             (lastWinDate.getTime() - boost.info.date.getTime()) /
               (1000 * 60 * 60 * 24)
@@ -785,25 +783,43 @@ function calcStreak(wres, power, currentDate) {
   power = power * (1 + streakMod) * (1 + titleMod);
 
   if (wres.recordYear.overallWins == 0) {
-    power = power * (1 - 0.1 * wres.recordYear.overallLosses);
+    var toDrop = wres.recordYear.overallLosses;
+    if (toDrop > 5) {
+      toDrop = 5;
+    }
+    power = power * (1 - 0.1 * toDrop);
     if (wres.forbiddenDoor) {
       power = power * 0.9;
     }
   } else if (wres.recordYear.overallWins < 3) {
-    power = power * (1 - 0.05 * (4 - wres.recordYear.overallWins));
-  } else if (wres.recordYear.overallWins < wres.recordYear.overallLosses) {
-    power =
-      power *
-      (1 -
-        0.02 * (wres.recordYear.overallLosses - wres.recordYear.overallWins));
-  } else if (wres.recordYear.overallWins > wres.recordYear.overallLosses) {
-    if (wres.recordYear.overallWins - wres.recordYear.overallLosses > 5) {
-      power = power * 1.05;
+    power = power * (1 - 0.05 * (3 - wres.recordYear.overallWins));
+  }
+  var recordTotal =
+    wres.recordYear.overallWins +
+    wres.recordYear.overallLosses +
+    wres.recordYear.overallDraws;
+  if (recordTotal > 5) {
+    if (recordTotal > 10) {
+      recordTotal = 10;
+    }
+    power = power * (1 + 0.0025 * recordTotal);
+  }
+  var targetWins = wres.recordYear.singlesWins;
+  var targetLosses = wres.recordYear.singlesLosses;
+  if (wresSize == 2) {
+    targetWins = wres.recordYear.tagTeamWins;
+    targetLosses = wres.recordYear.tagTeamLosses;
+  } else if (wresSize == 3) {
+    targetWins = wres.recordYear.trioWins;
+    targetLosses = wres.recordYear.trioLosses;
+  }
+  if (targetWins < targetLosses) {
+    power = power * (1 - 0.02 * (targetLosses - targetWins));
+  } else if (targetWins > targetLosses) {
+    if (targetWins - targetLosses > 10) {
+      power = power * 1.1;
     } else {
-      power =
-        power *
-        (1 +
-          0.01 * (wres.recordYear.overallWins - wres.recordYear.overallLosses));
+      power = power * (1 + 0.01 * (targetWins - targetLosses));
     }
   }
 
@@ -835,6 +851,7 @@ function calcStreak(wres, power, currentDate) {
 function findInnerTeams(ids, teamMap, idPower, masterKey, date) {
   var inTeam = new Map();
   var singles = new Map();
+  var singleUsed = new Map();
   for (let id1 of ids) {
     for (let id2 of ids) {
       if (id2 == id1) {
@@ -849,33 +866,35 @@ function findInnerTeams(ids, teamMap, idPower, masterKey, date) {
         // check if either id is already in the inTeam map. if it is, check if this new team's boost length is higher
         // if it is, replace the id already there. if it's not, continue
         // this should cause it to always use the teams with the most matches
-        if (!inTeam.has(id1) && !inTeam.has(id2)) {
-          inTeam.set(id1, team);
-          inTeam.set(id2, team);
-        } else if (inTeam.has(id1)) {
-          if (inTeam.get(id1).boosts.length > team.boosts.length) {
-            continue;
-          }
-        } else if (inTeam.has(id2)) {
-          if (inTeam.get(id2).boosts.length > team.boosts.length) {
-            continue;
-          }
-        }
-        inTeam.delete(id1);
-        inTeam.delete(id2);
+        // if (!inTeam.has(id1) && !inTeam.has(id2)) {
+        //   inTeam.set(id1, team);
+        //   inTeam.set(id2, team);
+        // } else if (inTeam.has(id1)) {
+        //   if (inTeam.get(id1).boosts.length > team.boosts.length) {
+        //     continue;
+        //   }
+        // } else if (inTeam.has(id2)) {
+        //   if (inTeam.get(id2).boosts.length > team.boosts.length) {
+        //     continue;
+        //   }
+        // }
+        // inTeam.delete(id1);
+        // inTeam.delete(id2);
         var calcReturn = calcWrestlerPower(team, date);
         team.boosts = calcReturn.boosts;
         team.power = Math.round(calcReturn.power);
         team.record = calcReturn.record;
         team.recordYear = calcReturn.recordYear;
-        inTeam.set(id1, team);
-        inTeam.set(id2, team);
+        inTeam.set(newKey, team);
+        // inTeam.set(id2, team);
+        singleUsed.set(id1);
+        singleUsed.set(id2);
         teamMap.set(newKey, team);
       }
     }
   }
   for (let id of ids) {
-    if (!inTeam.has(id)) {
+    if (!singleUsed.has(id)) {
       singles.set(id, idPower.get(id));
     }
   }
@@ -1007,6 +1026,23 @@ exports.calcRankings = async (req, res) => {
           team.record = calcReturn.record;
           team.recordYear = calcReturn.recordYear;
           teamMap.set(winnerKey, team);
+          var innerTeamResults = findInnerTeams(
+            winnerIDs,
+            teamMap,
+            idPower,
+            winnerKey,
+            show.date
+          );
+          teamMap = innerTeamResults.teamMap;
+          var inTeam = innerTeamResults.inTeam;
+          for (let [key, value] of inTeam) {
+            if (!alreadyUsed.has(value.name)) {
+              alreadyUsed.set(value.name);
+              winnerSide.innerTeamKeys.push(
+                JSON.stringify(value.wrestlers.sort())
+              );
+            }
+          }
           winnerSide.teamKey = winnerKey;
           winnerSide.avgPower = team.power;
         } else if (match.winner.length > 2) {
@@ -1126,6 +1162,25 @@ exports.calcRankings = async (req, res) => {
             team.record = calcReturn.record;
             team.recordYear = calcReturn.recordYear;
             teamMap.set(loserKey, team);
+            var innerTeamResults = findInnerTeams(
+              loserIDs,
+              teamMap,
+              idPower,
+              loserKey,
+              show.date
+            );
+            teamMap = innerTeamResults.teamMap;
+            var inTeam = innerTeamResults.inTeam;
+            if (inTeam.size > 0) {
+              for (let [key, value] of inTeam) {
+                if (!alreadyUsed.has(value.name)) {
+                  alreadyUsed.set(value.name);
+                  newLoser.innerTeamKeys.push(
+                    JSON.stringify(value.wrestlers.sort())
+                  );
+                }
+              }
+            }
             newLoser.teamKey = loserKey;
             newLoser.avgPower = team.power;
           }
@@ -1213,7 +1268,7 @@ exports.calcRankings = async (req, res) => {
           if (team) {
             //if there's a matching team, then the single power is cut and a boost is created for the team
             //the team in the map is also updated
-            singleChange = powChange * 0.1;
+            singleChange = powChange * 0.25;
             //FIRST THINGS FIRST. we need to check if this boost already exists, so it doesn't get added for every member of the team
             var newBoost = {
               info: {
@@ -1263,7 +1318,7 @@ exports.calcRankings = async (req, res) => {
             // if the team is an existing trio, it'll cut the value granted to the inner team
             // this should prevent inner team power from growing out of control
             if (team) {
-              newBoost.startPower = newBoost.startPower * 0.2;
+              newBoost.startPower = newBoost.startPower * 0.1;
             } else {
               newBoost.startPower = newBoost.startPower * 0.5;
             }
@@ -1325,7 +1380,12 @@ exports.calcRankings = async (req, res) => {
             var powerSum = opponentPowers.reduce((a, b) => a + b, 0);
             const wres = wresMap.get(w.name);
             var winnerAvg = Math.round(powerSum / opponentCount);
-            var expWin = 1 / (1 + 10 ** (winnerAvg - wres.power) / xFactor);
+            var expWin = 1 / (1 + 10 ** ((winnerAvg - wres.power) / xFactor));
+            if (expWin === 0) {
+              console.log(
+                `FUCK: ${winnerAvg} | ${wres.power} | ${kFactor} | ${actualWin} | ${expWin}`
+              );
+            }
             if (expWin === Number.POSITIVE_INFINITY) {
               console.log('CORRECTING INFINITY');
               expWin = 1.000000000001;
