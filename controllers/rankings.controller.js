@@ -1041,6 +1041,7 @@ exports.calcRankings = async (req, res) => {
           );
           teamMap = innerTeamResults.teamMap;
           var inTeam = innerTeamResults.inTeam;
+          var alreadyUsed = new Map();
           for (let [key, value] of inTeam) {
             if (!alreadyUsed.has(value.name)) {
               alreadyUsed.set(value.name);
@@ -1177,6 +1178,7 @@ exports.calcRankings = async (req, res) => {
             );
             teamMap = innerTeamResults.teamMap;
             var inTeam = innerTeamResults.inTeam;
+            var alreadyUsed = new Map();
             if (inTeam.size > 0) {
               for (let [key, value] of inTeam) {
                 if (!alreadyUsed.has(value.name)) {
