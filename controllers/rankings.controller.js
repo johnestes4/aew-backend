@@ -139,38 +139,6 @@ savePowerHistory = async (arr, titles, team) => {
 
     wres.powerHistory.sort((a, b) => a.date.getTime() - b.date.getTime());
 
-    // //it's been cranking out doubles of every power history cause i missed an extra push
-    // // this should clean out all the duplicates. probably. i hope
-    // // commenting this out now that it's been used. gonna keep it for the moment just in case i need it again
-    // var phI = 0;
-    // var phD = 'X';
-    // var log = false;
-    // if (wres.name == 'Jon Moxley') {
-    //   log = true;
-    // }
-    // while (phI < wres.powerHistory.length) {
-    //   if (log) {
-    //     console.log(`${wres.name} | STARTING NEW LOOP | PHI: ${phI}`);
-    //   }
-    //   if (phI == wres.powerHistory.length - 1) {
-    //     if (log) {
-    //       console.log(
-    //         `${wres.name} | PH LENGTH: ${wres.powerHistory.length} | PHI: ${phI}`
-    //       );
-    //     }
-    //   }
-    //   if (wres.powerHistory[phI].toString() == phD) {
-    //     if (log) {
-    //       console.log(`${wres.name} | SPLICING ${phI}`);
-    //     }
-    //     wres.powerHistory.splice(phI, 1);
-    //     continue;
-    //   } else {
-    //     phI++;
-    //     phD = wres.powerHistory[phI];
-    //     continue;
-    //   }
-    // }
     var lastDate = wres.boosts[wres.boosts.length - 1].info.date;
     while (wres.powerHistory.length > 20) {
       wres.powerHistory.shift();
@@ -362,14 +330,13 @@ function calcWrestlerPower(wrestler, currentDate) {
   var currentPower = 0 + wrestler.startPower;
   var lastWinDate;
   if (wrestler.boosts.length > 0) {
-    for (let i = wrestler.boosts.length - 1; i > 0; i--) {
+    for (let i = wrestler.boosts.length - 1; i >= 0; i--) {
       if (wrestler.boosts[i].win == 1) {
         lastWinDate = wrestler.boosts[i].info.date;
         break;
       }
     }
   }
-  //this now returns an OBJECT so that it can also return the gap of time since the last match. this will be used to inactive people after 12 weeks (84 days)
   var timeGap = 999;
   var singlesGap = 999;
   var currentYear = currentDate.getYear();
@@ -504,14 +471,16 @@ function calcWrestlerPower(wrestler, currentDate) {
         currentPower += boost.currentPower;
         continue;
       }
-      if (lastWinDate !== undefined) {
+      if (lastWinDate) {
         // if it's cashin time, we calc the decay - but we do it based on when that most recent win took place.
         // this way you don't get extra points if your last match was a win three weeks ago. decay ONLY HAPPENS on THE SAME SHOW
-        if (boost.info.date.getTime() < lastWinDate.getTime()) {
+        if (boost.info.date.getTime() <= lastWinDate.getTime()) {
           daysSince = Math.round(
             (lastWinDate.getTime() - boost.info.date.getTime()) /
               (1000 * 60 * 60 * 24)
           );
+        } else {
+          console.log(`${wres.name} | ${boost.info.date} | ${lastWinDate}`);
         }
       }
     }
@@ -537,6 +506,7 @@ function calcWrestlerPower(wrestler, currentDate) {
     } else if (daysSince >= 14) {
       modifier = 0.67;
       ppvModifier = 1.1;
+      winModifier = 1.05;
     } else if (daysSince >= 7) {
       modifier = 0.85;
       ppvModifier = 1.15;
@@ -1557,7 +1527,6 @@ exports.calcRankings = async (req, res) => {
       value.boosts.sort(
         (a, b) => a.info.date.getTime() - b.info.date.getTime()
       );
-      team.boosts = value.boosts;
 
       var calcPower = calcWrestlerPower(value, latestDate);
       team.boosts = calcPower.boosts;
@@ -1574,16 +1543,7 @@ exports.calcRankings = async (req, res) => {
       team.streak = streakResults.streak;
       team.streakFact = streakResults.streakFact;
       team.male = value.male;
-      // if (
-      //   team.name == 'FTR' ||
-      //   team.name == 'The Gunns' ||
-      //   team.name == 'The Acclaimed' ||
-      //   team.name == 'Matt Sydal & Dante Martin'
-      // ) {
-      //   console.log(
-      //     `${team.name} | TIMEGAP:${calcPower.timeGap} | LATESTDATE:${latestDate}`
-      //   );
-      // }
+
       if (calcPower.singlesGap >= 56) {
         team.active = false;
       } else if (calcPower.singlesGap <= 56) {
