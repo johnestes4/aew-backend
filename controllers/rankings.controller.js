@@ -758,17 +758,13 @@ function calcStreak(wres, power, currentDate) {
   }
   power = power * (1 + streakMod) * (1 + titleMod);
 
+  // RECORD MODIFIERS
   if (wres.recordYear.overallWins == 0) {
     var toDrop = wres.recordYear.overallLosses;
     if (toDrop > 5) {
       toDrop = 5;
     }
     power = power * (1 - 0.1 * toDrop);
-    if (wres.forbiddenDoor) {
-      power = power * 0.9;
-    }
-  } else if (wres.recordYear.overallWins < 3) {
-    power = power * (1 - 0.05 * (3 - wres.recordYear.overallWins));
   }
   var recordTotal =
     wres.recordYear.overallWins +
@@ -779,25 +775,30 @@ function calcStreak(wres, power, currentDate) {
       recordTotal = 10;
     }
     power = power * (1 + 0.0025 * recordTotal);
+  } else {
+    power = power * (1 - 0.03 * (5 - recordTotal));
   }
   var targetWins = wres.recordYear.singlesWins;
   var targetLosses = wres.recordYear.singlesLosses;
+  var targetDraws = wres.recordYear.singlesDraws;
   if (wresSize == 2) {
     targetWins = wres.recordYear.tagTeamWins;
     targetLosses = wres.recordYear.tagTeamLosses;
+    targetDraws = wres.recordYear.tagTeamDraws;
   } else if (wresSize == 3) {
     targetWins = wres.recordYear.trioWins;
     targetLosses = wres.recordYear.trioLosses;
+    targetDraws = wres.recordYear.trioDraws;
   }
-  if (targetWins < targetLosses) {
-    power = power * (1 - 0.02 * (targetLosses - targetWins));
-  } else if (targetWins > targetLosses) {
-    if (targetWins - targetLosses > 10) {
-      power = power * 1.1;
-    } else {
-      power = power * (1 + 0.01 * (targetWins - targetLosses));
-    }
-  }
+
+  var targetTotal = targetWins + targetLosses + targetDraws;
+  var recordX = targetWins > targetLosses ? 0.2 : 0.5;
+  var recordBoost =
+    1 +
+    ((targetWins - targetLosses) *
+      (1 + (targetTotal * recordX - 1.005 ** targetTotal))) /
+      100;
+  power = power * recordBoost;
 
   var finalStreak = lastResult == 1 ? streak : streak * -1;
 
@@ -884,16 +885,57 @@ function findInnerTeams(ids, teamMap, idPower, masterKey, date) {
 exports.calcRankings = async (req, res) => {
   try {
     // throw Error('STOPPING');
+    var newShow;
+    if (req.body.show) {
+      newShow = req.body.show;
+    }
     const shows = await Show.find();
     var latestDate = null;
     var showCount = 0;
     var wresMap = new Map();
     var teams = await Team.find();
     var teamMap = new Map();
-    for (let team of teams) {
-      //reset the boosts on the teams every time - since we're pulling from the DB for these, gotta make sure the slate is clean
-      team.boosts = [];
-      teamMap.set(JSON.stringify(team.wrestlers.sort()), team);
+    if (!newShow) {
+      //it should only reset team boosts if we're doing a total recalc
+      for (let team of teams) {
+        //reset the boosts on the teams every time - since we're pulling from the DB for these, gotta make sure the slate is clean
+        team.boosts = [];
+        teamMap.set(JSON.stringify(team.wrestlers.sort()), team);
+      }
+    } else {
+      // so if there's a newShow, it should be a recalc triggered by a new addition
+      // IF THIS WORKS: it should load the existing data and set up a wresMap that matches the ones created in the larger shows loop
+      // then change the shows array to just include the new show
+      // so it SHOULD only calculate the relevant wrestlers changed in the newly added show
+      // which means now when i add a new show i don't have to wait through an entire recalculation
+      for (let mId of newShow.matches) {
+        var match = await Match.findById(mId);
+        for (let wId of match.winner) {
+          var w = await Wrestler.findById(wId);
+          var newWres = {
+            name: w.name,
+            power: w.power,
+            startPower: w.startPower,
+            boosts: w.boosts,
+            id: w._id,
+          };
+          wresMap.set(w.name, newWres);
+        }
+        for (let side of match.loser) {
+          for (let wId of side) {
+            var w = await Wrestler.findById(wId);
+            var newWres = {
+              name: w.name,
+              power: w.power,
+              startPower: w.startPower,
+              boosts: w.boosts,
+              id: w._id,
+            };
+            wresMap.set(w.name, newWres);
+          }
+        }
+      }
+      shows = [newShow];
     }
     for (let show of shows) {
       var startingPower = 5000;
@@ -1500,11 +1542,6 @@ exports.calcRankings = async (req, res) => {
       wres.streak = streakResults.streak;
       wres.streakFact = streakResults.streakFact;
 
-      // if (wres.name == 'Samoa Joe' || wres.name == 'Chris Jericho') {
-      //   console.log(
-      //     `${wres.name} | TIMEGAP:${calcPower.timeGap} | SINGLESGAP:${calcPower.singlesGap} | LATESTDATE:${latestDate}`
-      //   );
-      // }
       if (calcPower.singlesGap >= 28) {
         wres.active = false;
       } else if (calcPower.singlesGap <= 7) {
