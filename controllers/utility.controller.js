@@ -200,7 +200,7 @@ exports.quickTitleUpdate = async (req, res) => {
         for (let reign of titleReigns) {
           if (reign.title._id.toString() == title._id.toString()) {
             title.reigns.push(reign._id);
-            if (!reign.endShow) {
+            if (reign.endShow === undefined && !reign.endOutside) {
               // console.log(reign.startShow.date);
               if (
                 mostRecentReign == null ||

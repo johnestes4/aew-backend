@@ -203,6 +203,7 @@ exports.importData = async (req, res) => {
                 title: b,
                 champion: winnerC,
                 endShow: { $exists: false },
+                endOutside: { $ne: true },
               });
               if (oldReign) {
                 oldReign.defenses.push(newMatch._id);
@@ -232,6 +233,7 @@ exports.importData = async (req, res) => {
                 title: needsChange,
                 champion: loserC,
                 endShow: { $exists: false },
+                endOutside: { $ne: true },
               });
               if (oldReign) {
                 oldReign.endShow = newShow._id;

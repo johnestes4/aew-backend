@@ -22,6 +22,7 @@ const titleReignSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'show',
     },
+    endOutside: Boolean,
 
     //is this how we want to do it????????????
     //i think so, we want to reference that info. just weird.

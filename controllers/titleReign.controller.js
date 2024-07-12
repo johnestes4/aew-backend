@@ -39,7 +39,16 @@ exports.getAllTitleReigns = async (req, res) => {
 
 exports.getTitleReign = async (req, res) => {
   try {
-    const titleReign = await TitleReign.findById(req.params.id);
+    const features = new APIFeatures(
+      TitleReign.findById(req.params.id)
+        .populate({ path: 'title', model: Title })
+        .populate({ path: 'champion', model: Wrestler })
+        .populate({ path: 'startShow', model: Show })
+        .populate({ path: 'endShow', model: Show })
+        .populate({ path: 'defenses', model: Match }),
+      req.query
+    );
+    const titleReign = await features.query;
 
     res.status(200).json({
       status: 'success',

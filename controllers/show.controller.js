@@ -245,7 +245,8 @@ exports.newShow = async (req, res) => {
               if (
                 JSON.stringify(reign.champion.sort()) ==
                   JSON.stringify(match.winner.sort()) &&
-                reign.endShow === undefined
+                reign.endShow === undefined &&
+                !reign.endOutside
               ) {
                 // set correct reign as reignIn for new proxy, then create it
                 newProxy.reignIn = reign._id;
