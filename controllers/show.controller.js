@@ -249,6 +249,8 @@ exports.newShow = async (req, res) => {
               ) {
                 // set correct reign as reignIn for new proxy, then create it
                 newProxy.reignIn = reign._id;
+                reign.defenses.push(match._id);
+                await reign.save();
                 newProxy = await MatchTitleProxy.create(newProxy);
                 // link new proxy to match, then break
                 match.title.push(newProxy._id);
