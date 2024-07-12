@@ -114,7 +114,7 @@ exports.getRankings = async (req, res) => {
   }
 };
 
-savePowerHistory = async (arr, titles, team) => {
+savePowerHistory = async (arr, titles, latestDate, team) => {
   var champIDs = new Map();
   for (let t of titles) {
     if (t.name.includes('AEW')) {
@@ -139,13 +139,12 @@ savePowerHistory = async (arr, titles, team) => {
 
     wres.powerHistory.sort((a, b) => a.date.getTime() - b.date.getTime());
 
-    var lastDate = wres.boosts[wres.boosts.length - 1].info.date;
     while (wres.powerHistory.length > 20) {
       wres.powerHistory.shift();
     }
 
     var newHistory = {
-      date: lastDate,
+      date: latestDate,
       power: wres.power,
     };
 
@@ -158,7 +157,7 @@ savePowerHistory = async (arr, titles, team) => {
     // console.log(`${wres.name} | ${newHistory.place}`);
     if (wres.powerHistory.length > 0) {
       if (
-        lastDate.toString() ==
+        latestDate.toString() ==
         wres.powerHistory[wres.powerHistory.length - 1].date.toString()
       ) {
         wres.powerHistory[wres.powerHistory.length - 1] = newHistory;
@@ -177,7 +176,7 @@ savePowerHistory = async (arr, titles, team) => {
   }
 };
 
-calcPowerHistory = async (req, res) => {
+calcPowerHistory = async (req, res, latestDate) => {
   try {
     const featuresM = new APIFeatures(
       Wrestler.find({
@@ -257,13 +256,13 @@ calcPowerHistory = async (req, res) => {
     var date = await featuresD.query;
 
     console.log('calcing male history...');
-    await savePowerHistory(male, titles, false);
+    await savePowerHistory(male, titles, latestDate, false);
     console.log('calcing female history...');
-    await savePowerHistory(female, titles, false);
+    await savePowerHistory(female, titles, latestDate, false);
     console.log('calcing tag history...');
-    await savePowerHistory(teams, titles, true);
+    await savePowerHistory(teams, titles, latestDate, true);
     console.log('calcing trio history...');
-    await savePowerHistory(trios, titles, true);
+    await savePowerHistory(trios, titles, latestDate, true);
   } catch (err) {
     console.log(err);
     return err;
@@ -889,51 +888,42 @@ exports.calcRankings = async (req, res) => {
     if (req.body.show) {
       newShow = req.body.show;
     }
-    const shows = await Show.find();
+    var shows = await Show.find();
     var latestDate = null;
     var showCount = 0;
     var wresMap = new Map();
     var teams = await Team.find();
     var teamMap = new Map();
-    if (!newShow) {
-      //it should only reset team boosts if we're doing a total recalc
-      for (let team of teams) {
-        //reset the boosts on the teams every time - since we're pulling from the DB for these, gotta make sure the slate is clean
+    //it should only reset team boosts if we're doing a total recalc
+    for (let team of teams) {
+      //reset the boosts on the teams every time - since we're pulling from the DB for these, gotta make sure the slate is clean
+      if (!newShow) {
         team.boosts = [];
-        teamMap.set(JSON.stringify(team.wrestlers.sort()), team);
       }
-    } else {
+      teamMap.set(JSON.stringify(team.wrestlers.sort()), team);
+    }
+    if (newShow) {
       // so if there's a newShow, it should be a recalc triggered by a new addition
       // IF THIS WORKS: it should load the existing data and set up a wresMap that matches the ones created in the larger shows loop
       // then change the shows array to just include the new show
       // so it SHOULD only calculate the relevant wrestlers changed in the newly added show
       // which means now when i add a new show i don't have to wait through an entire recalculation
-      for (let mId of newShow.matches) {
-        var match = await Match.findById(mId);
-        for (let wId of match.winner) {
-          var w = await Wrestler.findById(wId);
-          var newWres = {
-            name: w.name,
-            power: w.power,
-            startPower: w.startPower,
-            boosts: w.boosts,
-            id: w._id,
-          };
-          wresMap.set(w.name, newWres);
-        }
-        for (let side of match.loser) {
-          for (let wId of side) {
-            var w = await Wrestler.findById(wId);
-            var newWres = {
-              name: w.name,
-              power: w.power,
-              startPower: w.startPower,
-              boosts: w.boosts,
-              id: w._id,
-            };
-            wresMap.set(w.name, newWres);
-          }
-        }
+
+      // NO THAT IS WRONG. when it only calcs on the new show, it doesn't apply decay to everyone else
+      // if it's got newShow, then we load up wresMap with every single wrestler. teamMap is already loaded from above
+      // then it should only do elo shit on the new show, but do powercalc on everyone
+
+      var allWres = await Wrestler.find();
+
+      for (let w of allWres) {
+        var newWres = {
+          name: w.name,
+          power: w.power,
+          startPower: w.startPower,
+          boosts: w.boosts,
+          id: w._id,
+        };
+        wresMap.set(w.name, newWres);
       }
       shows = [newShow];
     }
@@ -1035,8 +1025,12 @@ exports.calcRankings = async (req, res) => {
           var team = teamMap.get(winnerKey);
           team.male = match.winner[0].male;
           teamMap.set(winnerKey, team);
-          if (team.startPower == null || team.startPower === undefined) {
-            team.startPower = startingPower;
+          if (
+            team.startPower == null ||
+            team.startPower === undefined ||
+            team.boosts.length == 0
+          ) {
+            team.startPower = winnerSide.avgPower;
           }
           var calcReturn = calcWrestlerPower(team, show.date);
           team.boosts = calcReturn.boosts;
@@ -1172,8 +1166,12 @@ exports.calcRankings = async (req, res) => {
               team.male = w2[0].male;
               teamMap.set(loserKey, team);
             }
-            if (team.startPower == null || team.startPower === undefined) {
-              team.startPower = startingPower;
+            if (
+              team.startPower == null ||
+              team.startPower === undefined ||
+              team.boosts.length == 0
+            ) {
+              team.startPower = newLoser.avgPower;
             }
             var calcReturn = calcWrestlerPower(team, show.date);
             team.boosts = calcReturn.boosts;
@@ -1594,7 +1592,7 @@ exports.calcRankings = async (req, res) => {
       await Team.findByIdAndUpdate(value.id, team);
     }
 
-    await calcPowerHistory(req, res);
+    await calcPowerHistory(req, res, latestDate);
 
     console.log('---FINISHED---');
     res.status(201).json({
