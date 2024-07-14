@@ -781,9 +781,9 @@ function calcStreak(wres, power, currentDate) {
   var targetLosses = wres.recordYear.singlesLosses;
   var targetDraws = wres.recordYear.singlesDraws;
   if (wresSize == 2) {
-    targetWins = wres.recordYear.tagTeamWins;
-    targetLosses = wres.recordYear.tagTeamLosses;
-    targetDraws = wres.recordYear.tagTeamDraws;
+    targetWins = wres.recordYear.tagWins;
+    targetLosses = wres.recordYear.tagLosses;
+    targetDraws = wres.recordYear.tagDraws;
   } else if (wresSize == 3) {
     targetWins = wres.recordYear.trioWins;
     targetLosses = wres.recordYear.trioLosses;
@@ -890,6 +890,9 @@ exports.calcRankings = async (req, res) => {
     }
     var shows = await Show.find();
     var latestDate = null;
+    // // UNCOMMENT THIS IF WE WANT TO COMPLETELY SKIP SHOW CALC
+    // latestDate = shows[shows.length - 1].date;
+    // shows = [];
     var showCount = 0;
     var wresMap = new Map();
     var teams = await Team.find();
@@ -1025,13 +1028,6 @@ exports.calcRankings = async (req, res) => {
           var team = teamMap.get(winnerKey);
           team.male = match.winner[0].male;
           teamMap.set(winnerKey, team);
-          if (
-            team.startPower == null ||
-            team.startPower === undefined ||
-            team.boosts.length == 0
-          ) {
-            team.startPower = winnerSide.avgPower;
-          }
           var calcReturn = calcWrestlerPower(team, show.date);
           team.boosts = calcReturn.boosts;
           team.power = Math.round(calcReturn.power);
@@ -1165,13 +1161,6 @@ exports.calcRankings = async (req, res) => {
             if (team.male === undefined) {
               team.male = w2[0].male;
               teamMap.set(loserKey, team);
-            }
-            if (
-              team.startPower == null ||
-              team.startPower === undefined ||
-              team.boosts.length == 0
-            ) {
-              team.startPower = newLoser.avgPower;
             }
             var calcReturn = calcWrestlerPower(team, show.date);
             team.boosts = calcReturn.boosts;
