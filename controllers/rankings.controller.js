@@ -150,9 +150,11 @@ savePowerHistory = async (arr, titles, latestDate, team) => {
 
     if (champIDs.has(wres._id.toString())) {
       newHistory.place = -1;
-    } else {
+    } else if (wres.active) {
       newHistory.place = count;
       count++;
+    } else {
+      newHistory.place = 999;
     }
     // console.log(`${wres.name} | ${newHistory.place}`);
     if (wres.powerHistory.length > 0) {
@@ -181,7 +183,7 @@ calcPowerHistory = async (req, res, latestDate) => {
     const featuresM = new APIFeatures(
       Wrestler.find({
         male: { $eq: 'true' },
-        active: { $eq: 'true' },
+        // active: { $eq: 'true' },
       }),
       req.query
     )
@@ -190,7 +192,7 @@ calcPowerHistory = async (req, res, latestDate) => {
     const featuresF = new APIFeatures(
       Wrestler.find({
         male: { $eq: 'false' },
-        active: { $eq: 'true' },
+        // active: { $eq: 'true' },
       }),
       req.query
     )
@@ -200,7 +202,7 @@ calcPowerHistory = async (req, res, latestDate) => {
       Team.find({
         male: { $eq: 'true' },
         wrestlers: { $size: 2 },
-        active: { $eq: 'true' },
+        // active: { $eq: 'true' },
       }),
       req.query
     )
@@ -210,7 +212,7 @@ calcPowerHistory = async (req, res, latestDate) => {
       Team.find({
         male: { $eq: 'true' },
         wrestlers: { $size: 3 },
-        active: { $eq: 'true' },
+        // active: { $eq: 'true' },
       }),
       req.query
     )
@@ -485,38 +487,39 @@ function calcWrestlerPower(wrestler, currentDate) {
     }
 
     if (daysSince >= 365) {
-      modifier = 0.015;
-      ppvModifier = 1.1;
-    } else if (daysSince >= 140) {
       modifier = 0.02;
       ppvModifier = 1.1;
-    } else if (daysSince >= 112) {
+    } else if (daysSince >= 140) {
       modifier = 0.05;
       ppvModifier = 1.1;
-    } else if (daysSince >= 84) {
+    } else if (daysSince >= 112) {
       modifier = 0.1;
       ppvModifier = 1.1;
+    } else if (daysSince >= 84) {
+      modifier = 0.25;
+      ppvModifier = 1.1;
     } else if (daysSince >= 56) {
-      modifier = 0.2;
+      modifier = 0.5;
       ppvModifier = 1.1;
     } else if (daysSince >= 28) {
-      modifier = 0.33;
-      ppvModifier = 1.1;
-    } else if (daysSince >= 14) {
       modifier = 0.67;
+      ppvModifier = 1.1;
+      winModifier = 1.025;
+    } else if (daysSince >= 14) {
+      modifier = 0.8;
       ppvModifier = 1.1;
       winModifier = 1.05;
     } else if (daysSince >= 7) {
-      modifier = 0.85;
+      modifier = 0.9;
       ppvModifier = 1.15;
-      lossModifier = 1.1;
-      winModifier = 1.1;
+      lossModifier = 1.05;
+      winModifier = 1.05;
       // teamModifier = 0.9;
     } else {
       modifier = 1;
       ppvModifier = 1.25;
-      lossModifier = 1.15;
-      winModifier = 1.15;
+      lossModifier = 1.1;
+      winModifier = 1.1;
       // teamModifier = 0.75;
     }
     var finalBoost = boost.startPower * boost.showMod;
