@@ -188,7 +188,7 @@ calcPowerHistory = async (req, res, latestDate) => {
       req.query
     )
       .sort('-power')
-      .limitFields('name,power,profileImage,boosts,powerHistory');
+      .limitFields('name,power,active,profileImage,boosts,powerHistory');
     const featuresF = new APIFeatures(
       Wrestler.find({
         male: { $eq: 'false' },
@@ -197,7 +197,7 @@ calcPowerHistory = async (req, res, latestDate) => {
       req.query
     )
       .sort('-power')
-      .limitFields('name,power,profileImage,boosts,powerHistory');
+      .limitFields('name,power,active,profileImage,boosts,powerHistory');
     const features2 = new APIFeatures(
       Team.find({
         male: { $eq: 'true' },
@@ -207,7 +207,7 @@ calcPowerHistory = async (req, res, latestDate) => {
       req.query
     )
       .sort('-power')
-      .limitFields('name,power,boosts,powerHistory');
+      .limitFields('name,power,active,boosts,powerHistory');
     const features3 = new APIFeatures(
       Team.find({
         male: { $eq: 'true' },
@@ -217,7 +217,7 @@ calcPowerHistory = async (req, res, latestDate) => {
       req.query
     )
       .sort('-power')
-      .limitFields('name,power');
+      .limitFields('name,power,active,boosts,powerHistory');
     const featuresT = new APIFeatures(
       Title.find({
         promotion: { $eq: 'AEW' },
@@ -232,7 +232,7 @@ calcPowerHistory = async (req, res, latestDate) => {
           model: Team,
         }),
       req.query
-    ).limitFields('name,currentChampion,boosts,powerHistory');
+    ).limitFields('name,currentChampion,active,boosts,powerHistory');
 
     const featuresD = new APIFeatures(
       Show.find().populate({
@@ -778,7 +778,14 @@ function calcStreak(wres, power, currentDate) {
     }
     power = power * (1 + 0.0025 * recordTotal);
   } else {
-    power = power * (1 - 0.03 * (5 - recordTotal));
+    if (wresSize == 1) {
+      power = power * (1 - 0.03 * (5 - recordTotal));
+    } else if (wresSize == 2) {
+      // nerfing small record debuffs for teams and trios. they have less matches overall and it's GUTTING the trios division
+      power = power * (1 - 0.025 * (5 - recordTotal));
+    } else if (wresSize == 3) {
+      power = power * (1 - 0.015 * (5 - recordTotal));
+    }
   }
   var targetWins = wres.recordYear.singlesWins;
   var targetLosses = wres.recordYear.singlesLosses;
