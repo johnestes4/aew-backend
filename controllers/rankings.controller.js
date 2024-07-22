@@ -719,7 +719,7 @@ function calcStreak(wres, power, currentDate) {
   }
   //arr 1: debuffs for losing streak. arr 2: buffs for winning streak
   var buffs = [
-    [-0.1, -0.2, -0.3, -0.4, -0.5, -0.5, -0.5, -0.5, -0.5, -0.5, -0.5],
+    [-0.05, -0.2, -0.3, -0.4, -0.5, -0.5, -0.5, -0.5, -0.5, -0.5, -0.5],
     [0.05, 0.15, 0.2, 0.25, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3],
   ];
   //arr 1: buffs for no title streak - ie all 1. arr 2: secondary titles. arr 3: world titles

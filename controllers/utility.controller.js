@@ -251,34 +251,82 @@ exports.scanTeams = async (req, res) => {
     }
     for (let team of teamMaster) {
       // console.log(value.times);
-      //3 wins or 5 overall qualifies you for an entry
-      if (team.wins >= 3 || team.times >= 5) {
+      //3 wins or 4 overall qualifies you for an entry
+
+      if (team.wins >= 3 || team.times >= 4) {
         var partner1 = await Wrestler.findById(team.members[0]);
         var partner2 = await Wrestler.findById(team.members[1]);
         var teamName = `${partner1.name} & ${partner2.name}`;
         var partner3 = null;
+        var totalPower = partner1.startPower + partner2.startPower;
+        var totalCount = 2;
         if (team.members.length == 3) {
           partner3 = await Wrestler.findById(team.members[2]);
           teamName += ` & ${partner3.name}`;
+          totalPower += partner3.startPower;
+          totalCount = 3;
         }
         var comboID = JSON.stringify(team.members.sort());
         var foundTeam = await Team.findOne({
           comboID: comboID,
         });
         if (!foundTeam) {
+          var startPower = Math.round(totalPower / totalCount);
           console.log(
             `${teamName} | ${team.wins} WINS / ${team.times} MATCHES`
           );
+
           const newTeam = {
             name: teamName,
             wrestlers: team.members,
             comboID: comboID,
-            power: 5000,
+            power: startPower,
+            startPower: startPower,
+            powerHistory: [],
             faction: false,
             active: true,
+            male: partner1.male,
             boosts: [],
+            record: {
+              overallWins: 0,
+              overallLosses: 0,
+              overallDraws: 0,
+              singlesWins: 0,
+              singlesLosses: 0,
+              singlesDraws: 0,
+              tagWins: 0,
+              tagLosses: 0,
+              tagDraws: 0,
+              trioWins: 0,
+              trioLosses: 0,
+              trioDraws: 0,
+            },
+            recordYear: {
+              overallWins: 0,
+              overallLosses: 0,
+              overallDraws: 0,
+              singlesWins: 0,
+              singlesLosses: 0,
+              singlesDraws: 0,
+              tagWins: 0,
+              tagLosses: 0,
+              tagDraws: 0,
+              trioWins: 0,
+              trioLosses: 0,
+              trioDraws: 0,
+            },
+            streak: 0,
+            streakFact: {
+              wins: 0,
+              overall: 0,
+            },
           };
           await Team.create(newTeam);
+        } else {
+          if (!foundTeam.startPower) {
+            foundTeam.startPower = startPower;
+            await foundTeam.save();
+          }
         }
       }
     }
