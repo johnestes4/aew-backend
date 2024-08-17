@@ -253,7 +253,11 @@ exports.scanTeams = async (req, res) => {
       // console.log(value.times);
       //3 wins or 4 overall qualifies you for an entry
 
-      if (team.wins >= 3 || team.times >= 4) {
+      if (
+        (team.members.length == 2 && team.times >= 3) ||
+        (team.members.length == 3 && team.wins >= 2) ||
+        (team.members.length == 3 && team.times >= 3)
+      ) {
         var partner1 = await Wrestler.findById(team.members[0]);
         var partner2 = await Wrestler.findById(team.members[1]);
         var teamName = `${partner1.name} & ${partner2.name}`;

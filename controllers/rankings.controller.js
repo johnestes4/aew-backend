@@ -749,7 +749,7 @@ function calcStreak(wres, power, currentDate) {
   //if it gets here without any sort of streak, just gotta ensure it doesn't have a negative number and that lastresult isn't null
   var streakMod = 0;
   if (lastResult == 0 || lastResult == 1) {
-    streakMod = buffs[lastResult][divisionStreak - 1];
+    streakMod = buffs[lastResult][streak - 1];
   }
   var titleMod = titleBuffs[whichTitleBuffs][titleStreak];
   if (lastTitleResult == 0) {
@@ -772,21 +772,6 @@ function calcStreak(wres, power, currentDate) {
     wres.recordYear.overallWins +
     wres.recordYear.overallLosses +
     wres.recordYear.overallDraws;
-  if (recordTotal > 5) {
-    if (recordTotal > 10) {
-      recordTotal = 10;
-    }
-    power = power * (1 + 0.0025 * recordTotal);
-  } else {
-    if (wresSize == 1) {
-      power = power * (1 - 0.03 * (5 - recordTotal));
-    } else if (wresSize == 2) {
-      // nerfing small record debuffs for teams and trios. they have less matches overall and it's GUTTING the trios division
-      power = power * (1 - 0.025 * (5 - recordTotal));
-    } else if (wresSize == 3) {
-      power = power * (1 - 0.015 * (5 - recordTotal));
-    }
-  }
   var targetWins = wres.recordYear.singlesWins;
   var targetLosses = wres.recordYear.singlesLosses;
   var targetDraws = wres.recordYear.singlesDraws;
@@ -801,6 +786,21 @@ function calcStreak(wres, power, currentDate) {
   }
 
   var targetTotal = targetWins + targetLosses + targetDraws;
+  if (recordTotal > 5) {
+    if (recordTotal > 10) {
+      recordTotal = 10;
+    }
+    power = power * (1 + 0.0025 * targetTotal);
+  } else {
+    if (wresSize == 1) {
+      power = power * (1 - 0.04 * (5 - targetTotal));
+    } else if (wresSize == 2) {
+      // nerfing small record debuffs for teams and trios. they have less matches overall and it's GUTTING the trios division
+      power = power * (1 - 0.03 * (5 - targetTotal));
+    } else if (wresSize == 3) {
+      power = power * (1 - 0.02 * (5 - targetTotal));
+    }
+  }
   var recordX = targetWins > targetLosses ? 0.2 : 0.5;
   var recordBoost =
     1 +
@@ -1262,7 +1262,10 @@ exports.calcRankings = async (req, res) => {
             expWin = 1.000000000001;
           }
           var actualWin = 1;
-          if (match.result.includes('Draw')) {
+          if (
+            match.result.includes('Draw') ||
+            match.result.includes('No Contest')
+          ) {
             actualWin = 0.5;
           }
           var powChange = titleMod * kFactor * (actualWin - expWin);
@@ -1285,7 +1288,7 @@ exports.calcRankings = async (req, res) => {
           if (team) {
             //if there's a matching team, then the single power is cut and a boost is created for the team
             //the team in the map is also updated
-            singleChange = powChange * 0.25;
+            singleChange = powChange * 0.35;
             //FIRST THINGS FIRST. we need to check if this boost already exists, so it doesn't get added for every member of the team
             var newBoost = {
               info: {
@@ -1306,7 +1309,7 @@ exports.calcRankings = async (req, res) => {
             teamMap.set(winnerSide.teamKey, team);
           } else if (match.winner.length > 1) {
             //if it's a tag match but it isn't an established team, then it's 50%
-            singleChange = powChange * 0.5;
+            singleChange = powChange * 0.55;
           }
           newBoost = {
             info: {
