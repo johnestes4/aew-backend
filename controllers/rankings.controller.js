@@ -1262,10 +1262,9 @@ exports.calcRankings = async (req, res) => {
             expWin = 1.000000000001;
           }
           var actualWin = 1;
-          if (
-            match.result.includes('Draw') ||
-            match.result.includes('No Contest')
-          ) {
+          if (match.result.includes('Draw')) {
+            actualWin = 0.67;
+          } else if (match.result.includes('No Contest')) {
             actualWin = 0.5;
           }
           var powChange = titleMod * kFactor * (actualWin - expWin);
@@ -1413,7 +1412,10 @@ exports.calcRankings = async (req, res) => {
 
             var showMod = calcShowMod(show, match, false);
             var actualWin = 0;
+
             if (match.result.includes('Draw')) {
+              actualWin = 0.67;
+            } else if (match.result.includes('No Contest')) {
               actualWin = 0.5;
             }
 
