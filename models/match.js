@@ -30,6 +30,7 @@ const matchSchema = new mongoose.Schema(
     ], //replace with titleProxy
     mainEvent: Boolean, //good for power calc, main events weighted slightly higher
     preshow: Boolean,
+    unsanctioned: Boolean,
     show: {
       //show/match shouldn't need a proxy. there's only a few fields on show, and all are useful for power calc
       //except location, maybe, but it's one string man it isn't worth skipping

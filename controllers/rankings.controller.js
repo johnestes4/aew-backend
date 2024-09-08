@@ -956,6 +956,9 @@ exports.calcRankings = async (req, res) => {
           path: 'winner loser',
           model: Wrestler,
         });
+        if (match.unsanctioned) {
+          continue
+        }
 
         // k-factor affects how much of each guy's points is up for grabs in any given match
         //startingPower/ 5, on a flat 5000v5000 matchup, would put 10% of each side on the line
