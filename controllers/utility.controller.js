@@ -7,6 +7,7 @@ const Wrestler = require('../models/wrestler');
 const MatchTitleProxy = require('../models/matchTitleProxy');
 const teamController = require('./team.controller');
 const authController = require('./auth.controller');
+const rankingsController = require('./rankings.controller')
 
 const fs = require('fs');
 
@@ -355,6 +356,7 @@ exports.teamPower = async (req, res) => {
       path: 'wrestlers',
       model: Wrestler,
     });
+    var teamsOut = []
 
     for (let team of teams) {
       var totalPower = 0;
@@ -363,10 +365,12 @@ exports.teamPower = async (req, res) => {
       }
       team.startPower = totalPower / team.wrestlers.length;
       await team.save();
+      teamsOut.push(team.name)
     }
     res.status(201).json({
       status: 'success',
-      data: 'Teams created',
+      message: "Teams Created",
+      data: teamsOut,
     });
   } catch (err) {
     console.log(err);
