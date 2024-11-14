@@ -253,37 +253,36 @@ exports.scanTeams = async (req, res) => {
     for (let team of teamMaster) {
       // console.log(value.times);
       //3 wins or 4 overall qualifies you for an entry
-
       if (
-        (team.members.length == 2 && team.times >= 3) ||
-        (team.members.length == 3 && team.wins >= 2) ||
-        (team.members.length == 3 && team.times >= 3)
+        (team.wrestlers.length == 2 && team.times >= 3) ||
+        (team.wrestlers.length == 3 && team.wins >= 2) ||
+        (team.wrestlers.length == 3 && team.times >= 3)
       ) {
-        var partner1 = await Wrestler.findById(team.members[0]);
-        var partner2 = await Wrestler.findById(team.members[1]);
+        var partner1 = await Wrestler.findById(team.wrestlers[0]);
+        var partner2 = await Wrestler.findById(team.wrestlers[1]);
         var teamName = `${partner1.name} & ${partner2.name}`;
         var partner3 = null;
         var totalPower = partner1.startPower + partner2.startPower;
         var totalCount = 2;
-        if (team.members.length == 3) {
-          partner3 = await Wrestler.findById(team.members[2]);
+        if (team.wrestlers.length == 3) {
+          partner3 = await Wrestler.findById(team.wrestlers[2]);
           teamName += ` & ${partner3.name}`;
           totalPower += partner3.startPower;
           totalCount = 3;
         }
-        var comboID = JSON.stringify(team.members.sort());
+        var startPower = Math.round(totalPower / totalCount);
+        var comboID = JSON.stringify(team.wrestlers.sort());
         var foundTeam = await Team.findOne({
           comboID: comboID,
         });
         if (!foundTeam) {
-          var startPower = Math.round(totalPower / totalCount);
           console.log(
             `${teamName} | ${team.wins} WINS / ${team.times} MATCHES`
           );
 
           const newTeam = {
             name: teamName,
-            wrestlers: team.members,
+            wrestlers: team.wrestlers,
             comboID: comboID,
             power: startPower,
             startPower: startPower,
@@ -326,10 +325,40 @@ exports.scanTeams = async (req, res) => {
               overall: 0,
             },
           };
+          if (newTeam.wrestlers.length > 2 && newTeam.subTeams.length == 0) {
+            for (let i = 0; i < newTeam.wrestlers.length; i++){
+              for (let i2 = 0; i2 < newTeam.wrestlers.length; i2++){
+                var comboId = (newTeam.wrestlers[i]._id+newTeam.wrestlers[i2]._id).sort()
+                if (newTeam.subTeams.has(comboId)) {
+                  continue
+                }
+                newTeam.subTeams.push(newTeam.wrestlers[i]+newTeam.wrestlers[i2])
+              }
+            }
+          }
+
           await Team.create(newTeam);
         } else {
-          if (!foundTeam.startPower) {
-            foundTeam.startPower = startPower;
+          saveTeam = false
+          if (foundTeam.startPower !== startPower) {
+            foundTeam.startPower = startPower
+            console.log(`${foundTeam.name} STARTPOWER UPDATED TO ${startPower}`)
+            saveTeam = true
+          }
+          if (foundTeam.wrestlers.length > 2 && foundTeam.subTeams.length == 0) {
+            for (let i = 0; i < foundTeam.wrestlers.length; i++){
+              for (let i2 = 0; i2 < foundTeam.wrestlers.length; i2++){
+                var comboId = JSON.stringify([foundTeam.wrestlers[i]._id,foundTeam.wrestlers[i2]._id].sort())
+                if (i == i2 || foundTeam.subTeams.includes(comboId)) {
+                  continue
+                }
+                foundTeam.subTeams.push(comboId)
+              }
+            }
+            console.log(`NEW SUBTEAMS FOR ${foundTeam.name}: ${foundTeam.subTeams.length}`)
+            saveTeam = true
+          }
+          if (saveTeam) {
             await foundTeam.save();
           }
         }
@@ -402,7 +431,7 @@ function calcTeams(teamArray, teamMaster, won) {
     var matchFound = false;
     for (let team of teamMaster) {
       if (
-        JSON.stringify(team.members.sort()) == JSON.stringify(teamArray.sort())
+        JSON.stringify(team.wrestlers.sort()) == JSON.stringify(teamArray.sort())
       ) {
         // console.log('found');
         team.times++;
@@ -413,7 +442,7 @@ function calcTeams(teamArray, teamMaster, won) {
     }
     if (!matchFound) {
       teamMaster.push({
-        members: teamArray.sort(),
+        wrestlers: teamArray.sort(),
         times: 1,
         wins: won,
       });

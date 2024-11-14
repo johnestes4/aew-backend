@@ -280,16 +280,6 @@ function calcShowMod(show, match, win) {
   ) {
     // startingPower = 100;
     showMod = 0.5;
-  } else if (
-    win &&
-    (match.matchType.toLowerCase().includes('dark') || match.preshow)
-  ) {
-    showMod = 0.25;
-  } else if (
-    (!win && match.matchType.toLowerCase().includes('dark')) ||
-    (!win && match.preshow && !show.ppv)
-  ) {
-    showMod = 1.5;
   } else if (show.ppv) {
     if (win && match.mainEvent) {
       showMod = 1.5;
@@ -302,6 +292,16 @@ function calcShowMod(show, match, win) {
     } else if (!win && !match.mainEvent) {
       showMod = 0.9;
     }
+  } else if (
+    (!win && match.matchType.toLowerCase().includes('dark')) ||
+    (!win && match.preshow && !show.ppv)
+  ) {
+    showMod = 1.5;
+  } else if (
+    win &&
+    (match.matchType.toLowerCase().includes('dark') || match.preshow)
+  ) {
+    showMod = 0.25;
   }
   return showMod;
 }
@@ -500,10 +500,12 @@ function calcWrestlerPower(wrestler, currentDate) {
       ppvModifier = 1.1;
     } else if (daysSince >= 56) {
       modifier = 0.5;
+      lossModifier = 0.9
       ppvModifier = 1.1;
     } else if (daysSince >= 28) {
       modifier = 0.67;
       ppvModifier = 1.1;
+      lossModifier = 0.95
       winModifier = 1.025;
     } else if (daysSince >= 14) {
       modifier = 0.8;
@@ -553,11 +555,13 @@ function calcWrestlerPower(wrestler, currentDate) {
       } else if (boost.titleMod > 1.5) {
         finalBoost = finalBoost * (boost.titleMod * 1.1);
       }
-    } else if (boost.titleMod > 1) {
-      // var titleMod = 1 + Math.abs(boost.titleMod - 1) * 0.75;
-      finalBoost = finalBoost * boost.titleMod * 1.1;
-      if (boost.titleMod > 1.5) {
-        finalBoost = finalBoost * boost.titleMod;
+    } else {
+      finalBoost = finalBoost * lossModifier;
+      if (boost.titleMod > 1) {
+        finalBoost = finalBoost * boost.titleMod * 1.1;
+        if (boost.titleMod > 1.5) {
+          finalBoost = finalBoost * boost.titleMod;
+        }
       }
     }
     finalBoost = finalBoost * modifier;
@@ -787,10 +791,7 @@ function calcStreak(wres, power, currentDate) {
 
   var targetTotal = targetWins + targetLosses + targetDraws;
   if (recordTotal > 5) {
-    if (recordTotal > 10) {
-      recordTotal = 10;
-    }
-    power = power * (1 + 0.0025 * targetTotal);
+    power = power * (1 + 0.005 * targetTotal);
   } else {
     if (wresSize == 1) {
       power = power * (1 - 0.04 * (5 - targetTotal));
@@ -894,11 +895,15 @@ function findInnerTeams(ids, teamMap, idPower, masterKey, date) {
 exports.calcRankings = async (req, res) => {
   try {
     // throw Error('STOPPING');
+    const startTime = new Date().getTime()
     var newShow;
     if (req.body.show) {
       newShow = req.body.show;
     }
     var shows = await Show.find();
+    shows.sort(
+      (a, b) => a.date.getTime() - b.date.getTime()
+    );
     var latestDate = null;
     // // UNCOMMENT THIS IF WE WANT TO COMPLETELY SKIP SHOW CALC
     // latestDate = shows[shows.length - 1].date;
@@ -936,10 +941,11 @@ exports.calcRankings = async (req, res) => {
           boosts: w.boosts,
           id: w._id,
         };
-        wresMap.set(w.name, newWres);
+        wresMap.set(w.name, w);
       }
       shows = [newShow];
     }
+    var oldTime = startTime
     for (let show of shows) {
       var startingPower = 5000;
       latestDate = show.date;
@@ -949,7 +955,9 @@ exports.calcRankings = async (req, res) => {
       //   break;
       // }
       if (showCount == 1 || showCount % 50 == 0 || showCount == shows.length) {
-        console.log(`Calculating show ${showCount}...`);
+        const midTime = new Date().getTime()
+        console.log(`Calculating show ${showCount}, ${(midTime - startTime)/1000} seconds...`);
+        oldTime = new Date().getTime()
       }
       for (let mId of show.matches) {
         const match = await Match.findById(mId).populate({
@@ -1007,15 +1015,18 @@ exports.calcRankings = async (req, res) => {
               boosts: [],
               id: w._id,
             };
-
+            w.boosts = []
             if (w.forbiddenDoor) {
-              newWres.power = 3500;
-              newWres.startPower = 3500;
+              w.power = 3500;
+              w.startPower = 3500;
             } else if (!w.allElite) {
-              newWres.power = 2500;
-              newWres.startPower = 2500;
+              w.power = 2500;
+              w.startPower = 2500;
+            } else {
+              w.startPower = startingPower
+              w.power = startingPower
             }
-            wresMap.set(w.name, newWres);
+            wresMap.set(w.name, w);
           }
           winnerSide.names.push(w.name);
           var wres = wresMap.get(w.name);
@@ -1047,24 +1058,29 @@ exports.calcRankings = async (req, res) => {
           team.record = calcReturn.record;
           team.recordYear = calcReturn.recordYear;
           teamMap.set(winnerKey, team);
-          var innerTeamResults = findInnerTeams(
-            winnerIDs,
-            teamMap,
-            idPower,
-            winnerKey,
-            show.date
-          );
-          teamMap = innerTeamResults.teamMap;
-          var inTeam = innerTeamResults.inTeam;
-          var alreadyUsed = new Map();
-          for (let [key, value] of inTeam) {
-            if (!alreadyUsed.has(value.name)) {
-              alreadyUsed.set(value.name);
-              winnerSide.innerTeamKeys.push(
-                JSON.stringify(value.wrestlers.sort())
-              );
+          for (let sub of team.subTeams) {
+            if (teamMap.has(sub)) {
+              winnerSide.innerTeamKeys.push(sub)
             }
           }
+          // var innerTeamResults = findInnerTeams(
+          //   winnerIDs,
+          //   teamMap,
+          //   idPower,
+          //   winnerKey,
+          //   show.date
+          // );
+          // teamMap = innerTeamResults.teamMap;
+          // var inTeam = innerTeamResults.inTeam;
+          // var alreadyUsed = new Map();
+          // for (let [key, value] of inTeam) {
+          //   if (!alreadyUsed.has(value.name)) {
+          //     alreadyUsed.set(value.name);
+          //     winnerSide.innerTeamKeys.push(
+          //       JSON.stringify(value.wrestlers.sort())
+          //     );
+          //   }
+          // }
           winnerSide.teamKey = winnerKey;
           winnerSide.avgPower = team.power;
         } else if (match.winner.length > 2) {
@@ -1093,10 +1109,11 @@ exports.calcRankings = async (req, res) => {
           //use alreadyUsed to keep track of which teams have already had their power added, since each team has two records in the map
           var alreadyUsed = new Map();
           for (let [key, value] of inTeam) {
-            if (!alreadyUsed.has(value.name)) {
+            var inId = JSON.stringify(value.wrestlers.sort())
+            if (!winnerSide.innerTeamKeys.includes(inId)) {
               alreadyUsed.set(value.name);
               winnerSide.innerTeamKeys.push(
-                JSON.stringify(value.wrestlers.sort())
+                inId
               );
               totalTeamPower += value.power;
               totalTeamCount++;
@@ -1138,15 +1155,19 @@ exports.calcRankings = async (req, res) => {
                 boosts: [],
                 id: w._id,
               };
+              w.boosts = []
               if (w.forbiddenDoor) {
-                newWres.power = 4000;
-                newWres.startPower = 4000;
+                w.power = 4000;
+                w.startPower = 4000;
               } else if (!w.allElite) {
-                newWres.power = 2500;
-                newWres.startPower = 2500;
+                w.power = 2500;
+                w.startPower = 2500;
+              } else {
+                w.startPower = startingPower
+                w.power = startingPower
               }
               if (!wresMap.has(w.name)) {
-                wresMap.set(w.name, newWres);
+                wresMap.set(w.name, w);
               }
             }
             var wres = wresMap.get(w.name);
@@ -1181,26 +1202,33 @@ exports.calcRankings = async (req, res) => {
             team.record = calcReturn.record;
             team.recordYear = calcReturn.recordYear;
             teamMap.set(loserKey, team);
-            var innerTeamResults = findInnerTeams(
-              loserIDs,
-              teamMap,
-              idPower,
-              loserKey,
-              show.date
-            );
-            teamMap = innerTeamResults.teamMap;
-            var inTeam = innerTeamResults.inTeam;
-            var alreadyUsed = new Map();
-            if (inTeam.size > 0) {
-              for (let [key, value] of inTeam) {
-                if (!alreadyUsed.has(value.name)) {
-                  alreadyUsed.set(value.name);
-                  newLoser.innerTeamKeys.push(
-                    JSON.stringify(value.wrestlers.sort())
-                  );
-                }
+
+            for (let sub of team.subTeams) {
+              if (teamMap.has(sub)) {
+                newLoser.innerTeamKeys.push(sub)
               }
             }
+  
+            // var innerTeamResults = findInnerTeams(
+            //   loserIDs,
+            //   teamMap,
+            //   idPower,
+            //   loserKey,
+            //   show.date
+            // );
+            // teamMap = innerTeamResults.teamMap;
+            // var inTeam = innerTeamResults.inTeam;
+            // var alreadyUsed = new Map();
+            // if (inTeam.size > 0) {
+            //   for (let [key, value] of inTeam) {
+            //     if (!alreadyUsed.has(value.name)) {
+            //       alreadyUsed.set(value.name);
+            //       newLoser.innerTeamKeys.push(
+            //         JSON.stringify(value.wrestlers.sort())
+            //       );
+            //     }
+            //   }
+            // }
             newLoser.teamKey = loserKey;
             newLoser.avgPower = team.power;
           }
@@ -1227,11 +1255,9 @@ exports.calcRankings = async (req, res) => {
             var alreadyUsed = new Map();
             if (inTeam.size > 0) {
               for (let [key, value] of inTeam) {
-                if (!alreadyUsed.has(value.name)) {
-                  alreadyUsed.set(value.name);
-                  newLoser.innerTeamKeys.push(
-                    JSON.stringify(value.wrestlers.sort())
-                  );
+                var inId = JSON.stringify(value.wrestlers.sort())
+                if (!winnerSide.innerTeamKeys.includes(inId)) {
+                  newLoser.innerTeamKeys.push(inId);
                   totalTeamPower += value.power;
                   totalTeamCount++;
                 }
@@ -1329,18 +1355,12 @@ exports.calcRankings = async (req, res) => {
             match: match._id,
           };
           wres.boosts.push(newBoost);
-          wresMap.set(wres.name, {
-            name: wres.name,
-            power: wres.power,
-            startPower: wres.startPower,
-            boosts: wres.boosts,
-            id: wres.id,
-          });
+          wresMap.set(wres.name, wres);
           if (winnerSide.innerTeamKeys.length > 0) {
             // if the team is an existing trio, it'll cut the value granted to the inner team
             // this should prevent inner team power from growing out of control
             if (team) {
-              newBoost.startPower = newBoost.startPower * 0.2;
+              newBoost.startPower = newBoost.startPower * 0.15;
             } else {
               newBoost.startPower = newBoost.startPower * 0.5;
             }
@@ -1479,13 +1499,7 @@ exports.calcRankings = async (req, res) => {
               console.log('LOSER');
               throw new Error('IT BROKE DUDE');
             }
-            wresMap.set(wres.name, {
-              name: wres.name,
-              power: wres.power,
-              startPower: wres.startPower,
-              boosts: wres.boosts,
-              id: wres.id,
-            });
+            wresMap.set(wres.name, wres);
 
             // INNER TEAM CALC
             // has to go down here so it can work off the same boost as the inner singles calc
@@ -1522,21 +1536,17 @@ exports.calcRankings = async (req, res) => {
 
     //run thru wresmap, do a final calc for everyone's power
     console.log('Final wrestler calculations...');
-    for (let [key, value] of wresMap) {
-      const wres = await Wrestler.findById(value.id);
-      if (wres == null) {
-        continue;
-      }
-      value.boosts.sort(
+    for (let [key, wres] of wresMap) {
+      wres.boosts.sort(
         (a, b) => a.info.date.getTime() - b.info.date.getTime()
       );
-      wres.boosts = value.boosts;
-
-      var calcPower = calcWrestlerPower(value, latestDate);
+      var calcPower = calcWrestlerPower(wres, latestDate);
       wres.boosts = calcPower.boosts;
       wres.record = calcPower.record;
       wres.recordYear = calcPower.recordYear;
-      wres.startPower = value.startPower;
+      if (!wres.name) {
+        continue
+      }
       var streakResults = calcStreak(
         wres,
         Math.round(calcPower.power),
@@ -1547,9 +1557,9 @@ exports.calcRankings = async (req, res) => {
       wres.streak = streakResults.streak;
       wres.streakFact = streakResults.streakFact;
 
-      if (calcPower.singlesGap >= 28) {
+      if ((calcPower.singlesGap >= 28 && wres.male) || (calcPower.singlesGap >= 42 && !wres.male)) {
         wres.active = false;
-      } else if (calcPower.singlesGap <= 7) {
+      } else {
         wres.active = true;
       }
       if (wres.power === null) {
@@ -1557,24 +1567,22 @@ exports.calcRankings = async (req, res) => {
         console.log(`${key}`);
         throw err;
       }
-      await Wrestler.findByIdAndUpdate(value.id, wres);
+      await Wrestler.findByIdAndUpdate(wres._id, wres);
     }
 
     console.log('Final team calculations...');
-    for (let [key, value] of teamMap) {
-      const team = await Team.findById(value.id);
+    for (let [key, team] of teamMap) {
       if (team == null) {
         continue;
       }
-      value.boosts.sort(
+      team.boosts.sort(
         (a, b) => a.info.date.getTime() - b.info.date.getTime()
       );
 
-      var calcPower = calcWrestlerPower(value, latestDate);
+      var calcPower = calcWrestlerPower(team, latestDate);
       team.boosts = calcPower.boosts;
       team.record = calcPower.record;
       team.recordYear = calcPower.recordYear;
-      team.startPower = value.startPower;
 
       var streakResults = calcStreak(
         team,
@@ -1584,11 +1592,10 @@ exports.calcRankings = async (req, res) => {
       team.power = Math.round(streakResults.power);
       team.streak = streakResults.streak;
       team.streakFact = streakResults.streakFact;
-      team.male = value.male;
 
-      if (calcPower.singlesGap >= 56) {
+      if (calcPower.singlesGap >= 42) {
         team.active = false;
-      } else if (calcPower.singlesGap <= 56) {
+      } else if (calcPower.singlesGap <= 42) {
         team.active = true;
       }
       if (team.power === null) {
@@ -1596,12 +1603,15 @@ exports.calcRankings = async (req, res) => {
         console.log(`${key}`);
         throw err;
       }
-      await Team.findByIdAndUpdate(value.id, team);
+      await Team.findByIdAndUpdate(team._id, team);
     }
 
     await calcPowerHistory(req, res, latestDate);
 
-    console.log('---FINISHED---');
+    const endTime = new Date().getTime()
+    console.log(`-Calc time: ${(endTime - startTime) / 1000} seconds-`)
+    console.log('------------FINISHED------------');
+    
     res.status(201).json({
       //status 201 means Created
       status: 'success',
