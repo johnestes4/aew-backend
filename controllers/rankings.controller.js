@@ -791,6 +791,9 @@ function calcStreak(wres, power, currentDate) {
 
   var targetTotal = targetWins + targetLosses + targetDraws;
   if (recordTotal > 5) {
+    if (recordTotal > 15) {
+      recordTotal = 15
+    }
     power = power * (1 + 0.005 * targetTotal);
   } else {
     if (wresSize == 1) {
